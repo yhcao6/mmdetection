@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from mmdet.core import (delta2bbox, multiclass_nms, bbox_target,
-                        weighted_cross_entropy, weighted_smoothl1, accuracy)
+                        weighted_cross_entropy, weighted_smoothl1, accuracy,
+                        iou_loss, giou_loss)
 from ..registry import HEADS
 
 
@@ -87,6 +88,8 @@ class BBoxHead(nn.Module):
              label_weights,
              bbox_targets,
              bbox_weights,
+             rois,
+             cfg,
              reduce=True):
         losses = dict()
         if cls_score is not None:
@@ -94,11 +97,33 @@ class BBoxHead(nn.Module):
                 cls_score, labels, label_weights, reduce=reduce)
             losses['acc'] = accuracy(cls_score, labels)
         if bbox_pred is not None:
-            losses['loss_reg'] = weighted_smoothl1(
-                bbox_pred,
-                bbox_targets,
-                bbox_weights,
-                avg_factor=bbox_targets.size(0))
+            bbox_loss_cfg = cfg.get('bbox_loss', None)
+            if bbox_loss_cfg is None:
+                losses['loss_reg'] = weighted_smoothl1(
+                    bbox_pred,
+                    bbox_targets,
+                    bbox_weights,
+                    avg_factor=bbox_targets.size(0))
+            elif bbox_loss_cfg.type == 'IoU':
+                losses['loss_reg'] = iou_loss(
+                    bbox_pred,
+                    bbox_targets,
+                    bbox_weights,
+                    rois,
+                    self.target_means,
+                    self.target_stds,
+                    reg_ratio=bbox_loss_cfg.reg_ratio)
+            elif bbox_loss_cfg.type == 'GIoU':
+                losses['loss_reg'] = giou_loss(
+                    bbox_pred,
+                    bbox_targets,
+                    bbox_weights,
+                    rois,
+                    self.target_means,
+                    self.target_stds,
+                    reg_ratio=bbox_loss_cfg.reg_ratio)
+            else:
+                raise NotImplementedError
         return losses
 
     def get_det_bboxes(self,
