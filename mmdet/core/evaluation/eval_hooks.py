@@ -64,6 +64,7 @@ class DistEvalHook(Hook):
         if not self.every_n_epochs(runner, self.interval):
             return
         runner.model.eval()
+        runner.mode = 'val'
         results = [None for _ in range(len(self.dataset))]
         prog_bar = mmcv.ProgressBar(len(self.dataset))
         for idx in range(runner.rank, len(self.dataset), runner.world_size):
