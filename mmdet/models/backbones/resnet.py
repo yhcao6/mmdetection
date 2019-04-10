@@ -6,7 +6,7 @@ import torch.utils.checkpoint as cp
 from mmcv.cnn import constant_init, kaiming_init
 from mmcv.runner import load_checkpoint
 
-from mmdet.ops import DeformConv, ModulatedDeformConv
+# from mmdet.ops import DeformConv, ModulatedDeformConv
 from ..registry import BACKBONES
 from ..utils import build_norm_layer
 
@@ -138,30 +138,30 @@ class Bottleneck(nn.Module):
                 padding=dilation,
                 dilation=dilation,
                 bias=False)
-        else:
-            deformable_groups = dcn.get('deformable_groups', 1)
-            if not self.with_modulated_dcn:
-                conv_op = DeformConv
-                offset_channels = 18
-            else:
-                conv_op = ModulatedDeformConv
-                offset_channels = 27
-            self.conv2_offset = nn.Conv2d(
-                planes,
-                deformable_groups * offset_channels,
-                kernel_size=3,
-                stride=self.conv2_stride,
-                padding=dilation,
-                dilation=dilation)
-            self.conv2 = conv_op(
-                planes,
-                planes,
-                kernel_size=3,
-                stride=self.conv2_stride,
-                padding=dilation,
-                dilation=dilation,
-                deformable_groups=deformable_groups,
-                bias=False)
+        # else:
+        #     deformable_groups = dcn.get('deformable_groups', 1)
+        #     if not self.with_modulated_dcn:
+        #         conv_op = DeformConv
+        #         offset_channels = 18
+        #     else:
+        #         conv_op = ModulatedDeformConv
+        #         offset_channels = 27
+        #     self.conv2_offset = nn.Conv2d(
+        #         planes,
+        #         deformable_groups * offset_channels,
+        #         kernel_size=3,
+        #         stride=self.conv2_stride,
+        #         padding=dilation,
+        #         dilation=dilation)
+        #     self.conv2 = conv_op(
+        #         planes,
+        #         planes,
+        #         kernel_size=3,
+        #         stride=self.conv2_stride,
+        #         padding=dilation,
+        #         dilation=dilation,
+        #         deformable_groups=deformable_groups,
+        #         bias=False)
         self.add_module(self.norm2_name, norm2)
         self.conv3 = nn.Conv2d(
             planes, planes * self.expansion, kernel_size=1, bias=False)

@@ -9,6 +9,7 @@ from mmdet.core import (AnchorGenerator, anchor_target, delta2bbox,
                         multi_apply, weighted_cross_entropy, weighted_smoothl1,
                         weighted_binary_cross_entropy,
                         weighted_sigmoid_focal_loss, multiclass_nms)
+from mmdet.ops import SigmoidFocalLoss
 from ..registry import HEADS
 
 
@@ -129,8 +130,9 @@ class AnchorHead(nn.Module):
                     bbox_targets, bbox_weights, num_total_samples, cfg):
         # classification loss
         if self.use_sigmoid_cls:
-            labels = labels.reshape(-1, self.cls_out_channels)
-            label_weights = label_weights.reshape(-1, self.cls_out_channels)
+            labels = labels.reshape(-1)
+            # labels = labels.reshape(-1, self.cls_out_channels)
+            # label_weights = label_weights.reshape(-1, self.cls_out_channels)
         else:
             labels = labels.reshape(-1)
             label_weights = label_weights.reshape(-1)
@@ -138,7 +140,8 @@ class AnchorHead(nn.Module):
             -1, self.cls_out_channels)
         if self.use_sigmoid_cls:
             if self.use_focal_loss:
-                cls_criterion = weighted_sigmoid_focal_loss
+                cls_criterion = SigmoidFocalLoss(
+                    gamma=cfg.gamma, alpha=cfg.alpha)
             else:
                 cls_criterion = weighted_binary_cross_entropy
         else:
@@ -147,13 +150,15 @@ class AnchorHead(nn.Module):
             else:
                 cls_criterion = weighted_cross_entropy
         if self.use_focal_loss:
-            loss_cls = cls_criterion(
-                cls_score,
-                labels,
-                label_weights,
-                gamma=cfg.gamma,
-                alpha=cfg.alpha,
-                avg_factor=num_total_samples)
+            # loss_cls = cls_criterion(
+            #     cls_score,
+            #     labels,
+            #     label_weights,
+            #     gamma=cfg.gamma,
+            #     alpha=cfg.alpha,
+            #     avg_factor=num_total_samples)
+            loss_cls = cls_criterion(cls_score,
+                                     labels.int()) / num_total_samples
         else:
             loss_cls = cls_criterion(
                 cls_score, labels, label_weights, avg_factor=num_total_samples)
