@@ -90,15 +90,24 @@ class BBoxHead(nn.Module):
              reduce=True):
         losses = dict()
         if cls_score is not None:
-            losses['loss_cls'] = weighted_cross_entropy(
-                cls_score, labels, label_weights, reduce=reduce)
+            # losses['loss_cls'] = weighted_cross_entropy(
+            #     cls_score, labels, label_weights, reduce=reduce)
+            reducetion = 'mean' if reduce else None
+            losses['loss_cls'] = F.cross_entropy(
+                cls_score, labels, reduction=reducetion)[None]
             losses['acc'] = accuracy(cls_score, labels)
         if bbox_pred is not None:
-            losses['loss_reg'] = weighted_smoothl1(
-                bbox_pred,
-                bbox_targets,
-                bbox_weights,
-                avg_factor=bbox_targets.size(0))
+            pos_mask = labels > 0
+            bbox_pred = bbox_pred.view(bbox_pred.size(0), -1, 4)
+            losses['loss_reg'] = F.smooth_l1_loss(
+                bbox_pred[pos_mask, labels[pos_mask]],
+                bbox_targets[pos_mask],
+                reduction='sum')[None] / float(bbox_targets.size(0))
+            # losses['loss_reg'] = weighted_smoothl1(
+            #     bbox_pred,
+            #     bbox_targets,
+            #     bbox_weights,
+            #     avg_factor=bbox_targets.size(0))
         return losses
 
     def get_det_bboxes(self,

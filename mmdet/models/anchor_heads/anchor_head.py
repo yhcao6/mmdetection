@@ -160,8 +160,13 @@ class AnchorHead(nn.Module):
             loss_cls = cls_criterion(cls_score,
                                      labels.int()) / num_total_samples
         else:
+            labels = labels.reshape(-1, self.cls_out_channels)
+            label_weights = label_weights.reshape(-1, self.cls_out_channels)
             loss_cls = cls_criterion(
-                cls_score, labels, label_weights, avg_factor=num_total_samples)
+                cls_score,
+                labels,
+                label_weights,
+                avg_factor=num_total_samples)
         # regression loss
         bbox_targets = bbox_targets.reshape(-1, 4)
         bbox_weights = bbox_weights.reshape(-1, 4)
