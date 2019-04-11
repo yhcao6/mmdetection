@@ -1,3 +1,6 @@
+// modify from
+// https://github.com/facebookresearch/maskrcnn-benchmark/blob/master/maskrcnn_benchmark/csrc/cuda/SigmoidFocalLoss_cuda.cu
+
 // Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 // This file is modified from  https://github.com/pytorch/pytorch/blob/master/modules/detectron/sigmoid_focal_loss_op.cu
 // Cheng-Yang Fu

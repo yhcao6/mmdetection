@@ -1,3 +1,5 @@
+// modify from
+// https://github.com/facebookresearch/maskrcnn-benchmark/blob/master/maskrcnn_benchmark/csrc/SigmoidFocalLoss.h
 #include <torch/extension.h>
 
 at::Tensor SigmoidFocalLoss_forward_cuda(
