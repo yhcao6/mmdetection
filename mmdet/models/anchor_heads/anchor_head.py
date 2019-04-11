@@ -9,7 +9,6 @@ from mmdet.core import (AnchorGenerator, anchor_target, delta2bbox,
                         multi_apply, weighted_cross_entropy, weighted_smoothl1,
                         weighted_binary_cross_entropy,
                         weighted_sigmoid_focal_loss, multiclass_nms)
-from mmdet.ops import SigmoidFocalLoss
 from ..registry import HEADS
 
 
@@ -139,8 +138,7 @@ class AnchorHead(nn.Module):
             -1, self.cls_out_channels)
         if self.use_sigmoid_cls:
             if self.use_focal_loss:
-                cls_criterion = SigmoidFocalLoss(
-                    gamma=cfg.gamma, alpha=cfg.alpha)
+                cls_criterion = weighted_sigmoid_focal_loss
             else:
                 cls_criterion = weighted_binary_cross_entropy
         else:
@@ -149,14 +147,16 @@ class AnchorHead(nn.Module):
             else:
                 cls_criterion = weighted_cross_entropy
         if self.use_focal_loss:
-            loss_cls = cls_criterion(cls_score,
-                                     labels.int()) / num_total_samples
-        else:
             loss_cls = cls_criterion(
                 cls_score,
                 labels,
                 label_weights,
+                gamma=cfg.gamma,
+                alpha=cfg.alpha,
                 avg_factor=num_total_samples)
+        else:
+            loss_cls = cls_criterion(
+                cls_score, labels, label_weights, avg_factor=num_total_samples)
         # regression loss
         bbox_targets = bbox_targets.reshape(-1, 4)
         bbox_weights = bbox_weights.reshape(-1, 4)
