@@ -2,7 +2,7 @@
 import torch
 import torch.nn.functional as F
 
-from ...ops.sigmoid_focal_loss import sigmoid_focal_loss_cuda
+from ...ops import sigmoid_focal_loss_cuda
 
 
 def weighted_nll_loss(pred, label, weight, avg_factor=None):
