@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from mmdet.core import (delta2bbox, multiclass_nms, bbox_target,
                         weighted_cross_entropy, weighted_smoothl1, accuracy,
-                        iou_loss, giou_loss)
+                        giou_loss)
 from ..registry import HEADS
 
 
@@ -22,7 +22,8 @@ class BBoxHead(nn.Module):
                  num_classes=81,
                  target_means=[0., 0., 0., 0.],
                  target_stds=[0.1, 0.1, 0.2, 0.2],
-                 reg_class_agnostic=False):
+                 reg_class_agnostic=False,
+                 reg_giou_loss=False):
         super(BBoxHead, self).__init__()
         assert with_cls or with_reg
         self.with_avg_pool = with_avg_pool
@@ -34,6 +35,7 @@ class BBoxHead(nn.Module):
         self.target_means = target_means
         self.target_stds = target_stds
         self.reg_class_agnostic = reg_class_agnostic
+        self.reg_giou_loss = reg_giou_loss
 
         in_channels = self.in_channels
         if self.with_avg_pool:
@@ -97,33 +99,27 @@ class BBoxHead(nn.Module):
                 cls_score, labels, label_weights, reduce=reduce)
             losses['acc'] = accuracy(cls_score, labels)
         if bbox_pred is not None:
-            bbox_loss_cfg = cfg.get('bbox_loss', None)
-            if bbox_loss_cfg is None:
-                losses['loss_reg'] = weighted_smoothl1(
-                    bbox_pred,
-                    bbox_targets,
-                    bbox_weights,
-                    avg_factor=bbox_targets.size(0))
-            elif bbox_loss_cfg.type == 'IoU':
-                losses['loss_reg'] = iou_loss(
-                    bbox_pred,
-                    bbox_targets,
-                    bbox_weights,
-                    rois,
-                    self.target_means,
-                    self.target_stds,
-                    reg_ratio=bbox_loss_cfg.reg_ratio)
-            elif bbox_loss_cfg.type == 'GIoU':
-                losses['loss_reg'] = giou_loss(
-                    bbox_pred,
-                    bbox_targets,
-                    bbox_weights,
-                    rois,
-                    self.target_means,
-                    self.target_stds,
-                    reg_ratio=bbox_loss_cfg.reg_ratio)
+            pos_inds = labels > 0
+            if self.reg_class_agnostic:
+                pos_bbox_pred = bbox_pred.view(bbox_pred.size(0), 4)[pos_inds]
             else:
-                raise NotImplementedError
+                pos_bbox_pred = bbox_pred.view(bbox_pred.size(0), -1,
+                                               4)[pos_inds, labels[pos_inds]]
+            if self.reg_giou_loss:
+                losses['loss_reg'] = giou_loss(
+                    pos_bbox_pred,
+                    bbox_targets[pos_inds],
+                    bbox_weights[pos_inds],
+                    rois[pos_inds, 1:],
+                    self.target_means,
+                    self.target_stds,
+                    reg_loss_ratio=cfg.reg_loss_weight)
+            else:
+                losses['loss_reg'] = weighted_smoothl1(
+                    pos_bbox_pred,
+                    bbox_targets[pos_inds],
+                    bbox_weights[pos_inds],
+                    avg_factor=bbox_targets.size(0))
         return losses
 
     def get_det_bboxes(self,

@@ -2,7 +2,8 @@
 import torch
 import torch.nn.functional as F
 
-from mmdet.core import bbox_overlaps, delta2bbox
+from ..bbox import bbox_overlaps, delta2bbox
+from ...ops import sigmoid_focal_loss
 
 
 def weighted_nll_loss(pred, label, weight, avg_factor=None):
@@ -23,6 +24,8 @@ def weighted_cross_entropy(pred, label, weight, avg_factor=None, reduce=True):
 
 
 def weighted_binary_cross_entropy(pred, label, weight, avg_factor=None):
+    if pred.dim() != label.dim():
+        label, weight = _expand_binary_labels(label, weight, pred.size(-1))
     if avg_factor is None:
         avg_factor = max(torch.sum(weight > 0).float().item(), 1.)
     return F.binary_cross_entropy_with_logits(
@@ -30,12 +33,12 @@ def weighted_binary_cross_entropy(pred, label, weight, avg_factor=None):
         reduction='sum')[None] / avg_factor
 
 
-def sigmoid_focal_loss(pred,
-                       target,
-                       weight,
-                       gamma=2.0,
-                       alpha=0.25,
-                       reduction='mean'):
+def py_sigmoid_focal_loss(pred,
+                          target,
+                          weight,
+                          gamma=2.0,
+                          alpha=0.25,
+                          reduction='mean'):
     pred_sigmoid = pred.sigmoid()
     target = target.type_as(pred)
     pt = (1 - pred_sigmoid) * target + pred_sigmoid * (1 - target)
@@ -62,9 +65,9 @@ def weighted_sigmoid_focal_loss(pred,
                                 num_classes=80):
     if avg_factor is None:
         avg_factor = torch.sum(weight > 0).float().item() / num_classes + 1e-6
-    return sigmoid_focal_loss(
-        pred, target, weight, gamma=gamma, alpha=alpha,
-        reduction='sum')[None] / avg_factor
+    return torch.sum(
+        sigmoid_focal_loss(pred, target, gamma, alpha, 'none') * weight.view(
+            -1, 1))[None] / avg_factor
 
 
 def mask_cross_entropy(pred, target, label):
@@ -117,45 +120,39 @@ def accuracy(pred, target, topk=1):
     return res[0] if return_single else res
 
 
-def iou_loss(pred,
-             target,
-             weight,
-             rois,
-             target_means,
-             target_stds,
-             avg_factor=None,
-             reg_ratio=1.):
-    if avg_factor is None:
-        avg_factor = torch.sum(weight > 0).float().item() / 4 + 1e-6
-    pos_inds = weight.nonzero().view(-1, 8)[:, 0]
-    pos_mask = weight > 0
-    pos_bbox_pred = pred[pos_mask].view(-1, 4)
-    pos_bbox_target = target[pos_mask].view(-1, 4)
-    pos_rois = rois[pos_inds, 1:]
-    pos_pred_bboxes = delta2bbox(pos_rois, pos_bbox_pred, target_means,
-                                 target_stds)
-    pos_target_bboxes = delta2bbox(pos_rois, pos_bbox_target, target_means,
-                                   target_stds)
-    ious = bbox_overlaps(pos_pred_bboxes, pos_target_bboxes, is_aligned=True)
-    iou_distances = 1 - ious
-    return torch.sum(iou_distances)[None] / avg_factor * reg_ratio
+def _expand_binary_labels(labels, label_weights, label_channels):
+    bin_labels = labels.new_full((labels.size(0), label_channels), 0)
+    inds = torch.nonzero(labels >= 1).squeeze()
+    if inds.numel() > 0:
+        bin_labels[inds, labels[inds] - 1] = 1
+    bin_label_weights = label_weights.view(-1, 1).expand(
+        label_weights.size(0), label_channels)
+    return bin_labels, bin_label_weights
 
 
-def giou_loss(pred,
-              target,
-              weight,
-              rois,
+def iou_loss(pred_bboxes, target_bboxes, reduction='mean'):
+    ious = bbox_overlaps(pred_bboxes, target_bboxes, is_aligned=True)
+    loss = -ious.log()
+
+    reduction_enum = F._Reduction.get_enum(reduction)
+    if reduction_enum == 0:
+        return loss
+    elif reduction_enum == 1:
+        return loss.mean()
+    elif reduction_enum == 2:
+        return loss.sum()
+
+
+def giou_loss(pos_bbox_pred,
+              pos_bbox_target,
+              pos_weight,
+              pos_rois,
               target_means,
               target_stds,
               avg_factor=None,
-              reg_ratio=10.):
+              reg_loss_ratio=2.):
     if avg_factor is None:
-        avg_factor = torch.sum(weight > 0).float().item() / 4 + 1e-6
-    pos_inds = weight.nonzero().view(-1, 8)[:, 0]
-    pos_mask = weight > 0
-    pos_bbox_pred = pred[pos_mask].view(-1, 4)
-    pos_bbox_target = target[pos_mask].view(-1, 4)
-    pos_rois = rois[pos_inds, 1:]
+        avg_factor = torch.sum(pos_weight > 0).float().item() / 4 + 1e-6
     pos_pred_bboxes = delta2bbox(pos_rois, pos_bbox_pred, target_means,
                                  target_stds)
     pos_target_bboxes = delta2bbox(pos_rois, pos_bbox_target, target_means,
@@ -163,10 +160,10 @@ def giou_loss(pred,
 
     bboxes1 = pos_pred_bboxes
     bboxes2 = pos_target_bboxes
-    lt = torch.max(bboxes1[:, :2], bboxes2[:, :2])  # [rows, 2]
-    rb = torch.min(bboxes1[:, 2:], bboxes2[:, 2:])  # [rows, 2]
+    lt = torch.max(bboxes1[:, :2], bboxes2[:, :2])
+    rb = torch.min(bboxes1[:, 2:], bboxes2[:, 2:])
 
-    wh = (rb - lt + 1).clamp(min=0)  # [rows, 2]
+    wh = (rb - lt + 1).clamp(min=0)
     overlap = wh[:, 0] * wh[:, 1]
     ap = (bboxes1[:, 2] - bboxes1[:, 0] + 1) * (
         bboxes1[:, 3] - bboxes1[:, 1] + 1)
@@ -181,4 +178,4 @@ def giou_loss(pred,
     u = ap + ag - overlap
     gious = ious - (enclose_area - u) / enclose_area
     iou_distances = 1 - gious
-    return torch.sum(iou_distances)[None] / avg_factor * reg_ratio
+    return torch.sum(iou_distances)[None] / avg_factor * reg_loss_ratio
