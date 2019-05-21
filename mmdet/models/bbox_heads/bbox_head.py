@@ -96,6 +96,7 @@ class BBoxHead(nn.Module):
              label_weights,
              bbox_targets,
              bbox_weights,
+             rois,
              reduce=True):
         losses = dict()
         if cls_score is not None:
@@ -113,6 +114,9 @@ class BBoxHead(nn.Module):
                 pos_bbox_pred,
                 bbox_targets[pos_inds],
                 bbox_weights[pos_inds],
+                pos_rois=rois[pos_inds, 1:],
+                target_means=self.target_means,
+                target_stds=self.target_stds,
                 avg_factor=bbox_targets.size(0))
         return losses
 
