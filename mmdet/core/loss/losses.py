@@ -1,4 +1,5 @@
 # TODO merge naive and weighted loss.
+import numpy as np
 import torch
 import torch.nn.functional as F
 
@@ -66,8 +67,8 @@ def weighted_sigmoid_focal_loss(pred,
     if avg_factor is None:
         avg_factor = torch.sum(weight > 0).float().item() / num_classes + 1e-6
     return torch.sum(
-        sigmoid_focal_loss(pred, target, gamma, alpha, 'none') * weight.view(
-            -1, 1))[None] / avg_factor
+        sigmoid_focal_loss(pred, target, gamma, alpha, 'none') *
+        weight.view(-1, 1))[None] / avg_factor
 
 
 def mask_cross_entropy(pred, target, label):
@@ -141,3 +142,59 @@ def iou_loss(pred_bboxes, target_bboxes, reduction='mean'):
         return loss.mean()
     elif reduction_enum == 2:
         return loss.sum()
+
+
+def balanced_l1_loss(pred,
+                     target,
+                     weight=None,
+                     alpha=0.5,
+                     gamma=1.5,
+                     beta=1.0,
+                     avg_factor=None,
+                     reduction='none'):
+    assert beta > 0
+    assert pred.size() == target.size() and target.numel() > 0
+
+    diff = torch.abs(pred - target)
+    b = np.e**(gamma / alpha) - 1
+    loss = torch.where(
+        diff < beta, alpha / b *
+        (b * diff + 1) * torch.log(b * diff / beta + 1) - alpha * diff,
+        gamma * diff + gamma / b - alpha * beta)
+
+    reduction = F._Reduction.get_enum(reduction)
+    # none: 0, elementwise_mean:1, sum: 2
+    if reduction == 1:
+        loss = loss.sum() / pred.numel()
+    elif reduction == 2:
+        loss = loss.sum()
+
+    if weight is not None:
+        loss = torch.sum(loss * weight)[None]
+        if avg_factor is None:
+            avg_factor = torch.sum(weight > 0).float().item() / 4 + 1e-6
+
+    if avg_factor is not None:
+        loss /= avg_factor
+
+    return loss
+
+
+def l1_loss(pred, target, reduction='mean'):
+    assert pred.size() == target.size() and target.numel() > 0
+    loss = torch.abs(pred - target)
+    reduction_enum = F._Reduction.get_enum(reduction)
+    # none: 0, mean:1, sum: 2
+    if reduction_enum == 0:
+        return loss
+    elif reduction_enum == 1:
+        return loss.sum() / pred.numel()
+    elif reduction_enum == 2:
+        return loss.sum()
+
+
+def weighted_l1(pred, target, weight, avg_factor=None):
+    if avg_factor is None:
+        avg_factor = torch.sum(weight > 0).float().item() / 4 + 1e-6
+    loss = l1_loss(pred, target, reduction='none')
+    return torch.sum(loss * weight)[None] / avg_factor
