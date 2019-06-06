@@ -1,8 +1,11 @@
 import matplotlib.pyplot as plt
+import argparse
 
 
 def read_model_zoo(model_zoo_path):
     model_zoo = dict()
+    markers = ['.', '^', '1', 's', 'p', '*', 'x', 'D']
+    model_mark = dict()
     with open(model_zoo_path, 'r') as f:
         meet_model = False
         for line in f:
@@ -10,6 +13,8 @@ def read_model_zoo(model_zoo_path):
             if '###' in line:
                 meet_model = False
                 if 'R-CNN' in line or 'Retinanet' in line or 'HTC' in line:
+                    if 'Libra' in line:
+                        continue
                     meet_model = True
                     model_series = line.replace('###', '').strip()
                     if 'Fast R-CNN' in model_series:
@@ -17,6 +22,7 @@ def read_model_zoo(model_zoo_path):
                     if 'HTC' in model_series:
                         model_series = 'HTC'
                     model_zoo[model_series] = dict()
+                    model_mark[model_series] = markers.pop(0)
 
             if meet_model:
                 if 'Backbone' in line:
@@ -38,6 +44,7 @@ def read_model_zoo(model_zoo_path):
                     if 'Fast R-CNN' in model_series and 'Mask' in line:
                         model_series = 'Fast Mask R-CNN'
                         model_zoo[model_series] = dict()
+                        model_mark[model_series] = markers.pop(0)
 
                     model_name = []
                     for i, v in enumerate(line.split('|')[1:-2][:mem_inds]):
@@ -63,12 +70,10 @@ def read_model_zoo(model_zoo_path):
                     for k, v in zip(metric_keys, metric_values):
                         model_zoo[model_series][model_name][k] = v
 
-    return model_zoo
+    return model_zoo, model_mark
 
 
-def draw_box_ap(model_zoo):
-    markers = ['.', '^', '1', 's', 'p', '*', 'x', 'D']
-
+def draw_box_ap(model_zoo, model_mark):
     model_count = 0
     for model_series, model_series_dict in model_zoo.items():
         print('###{}'.format(model_series))
@@ -92,17 +97,17 @@ def draw_box_ap(model_zoo):
         plt.scatter(
             inf_times,
             box_aps,
-            marker=markers[model_count],
+            marker=model_mark[model_series],
             label=model_series)
         plt.legend()
         model_count += 1
 
+    plt.savefig('box_ap.pdf')
     plt.show()
+    plt.cla()
 
 
-def draw_mask_ap(model_zoo):
-    markers = ['.', '^', '1', 's', 'p', '*', 'x', 'D']
-
+def draw_mask_ap(model_zoo, model_mark):
     model_count = 0
     for model_series, model_series_dict in model_zoo.items():
         print('###{}'.format(model_series))
@@ -128,15 +133,21 @@ def draw_mask_ap(model_zoo):
         plt.scatter(
             inf_times,
             mask_aps,
-            marker=markers[model_count],
+            marker=model_mark[model_series],
             label=model_series)
         plt.legend()
         model_count += 1
 
+    plt.savefig('mask_ap.pdf')
     plt.show()
+    plt.cla()
 
 
 if __name__ == '__main__':
-    model_zoo = read_model_zoo('MODEL_ZOO.MD')
-    draw_box_ap(model_zoo)
-    draw_mask_ap(model_zoo)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('model_zoo_path', help='path of MODEL_ZOO.md')
+    args = parser.parse_args()
+
+    model_zoo, model_mark = read_model_zoo(args.model_zoo_path)
+    draw_box_ap(model_zoo, model_mark)
+    draw_mask_ap(model_zoo, model_mark)
