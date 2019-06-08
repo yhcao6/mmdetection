@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from mmdet.core import (delta2bbox, multiclass_nms, bbox_target,
                         weighted_cross_entropy, weighted_smoothl1, accuracy,
-                        giou_loss)
+                        giou_loss, iou_loss)
 from ..registry import HEADS
 
 
@@ -23,7 +23,8 @@ class BBoxHead(nn.Module):
                  target_means=[0., 0., 0., 0.],
                  target_stds=[0.1, 0.1, 0.2, 0.2],
                  reg_class_agnostic=False,
-                 reg_giou_loss=False):
+                 reg_giou_loss=False,
+                 reg_iou_loss=False):
         super(BBoxHead, self).__init__()
         assert with_cls or with_reg
         self.with_avg_pool = with_avg_pool
@@ -36,6 +37,7 @@ class BBoxHead(nn.Module):
         self.target_stds = target_stds
         self.reg_class_agnostic = reg_class_agnostic
         self.reg_giou_loss = reg_giou_loss
+        self.reg_iou_loss = reg_iou_loss
 
         in_channels = self.in_channels
         if self.with_avg_pool:
@@ -114,6 +116,15 @@ class BBoxHead(nn.Module):
                     self.target_means,
                     self.target_stds,
                     reg_loss_ratio=cfg.reg_loss_weight)
+            elif self.reg_iou_loss:
+                losses['loss_reg'] = iou_loss(
+                    pos_bbox_pred,
+                    bbox_targets[pos_inds],
+                    bbox_weights[pos_inds],
+                    rois[pos_inds, 1:],
+                    self.target_means,
+                    self.target_stds,
+                    reg_loss_ratio=cfg.reg_loss_weight)
             else:
                 losses['loss_reg'] = weighted_smoothl1(
                     pos_bbox_pred,
@@ -147,8 +158,9 @@ class BBoxHead(nn.Module):
         if cfg is None:
             return bboxes, scores
         else:
-            det_bboxes, det_labels = multiclass_nms(
-                bboxes, scores, cfg.score_thr, cfg.nms, cfg.max_per_img)
+            det_bboxes, det_labels = multiclass_nms(bboxes, scores,
+                                                    cfg.score_thr, cfg.nms,
+                                                    cfg.max_per_img)
 
             return det_bboxes, det_labels
 

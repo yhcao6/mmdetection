@@ -66,8 +66,8 @@ def weighted_sigmoid_focal_loss(pred,
     if avg_factor is None:
         avg_factor = torch.sum(weight > 0).float().item() / num_classes + 1e-6
     return torch.sum(
-        sigmoid_focal_loss(pred, target, gamma, alpha, 'none') * weight.view(
-            -1, 1))[None] / avg_factor
+        sigmoid_focal_loss(pred, target, gamma, alpha, 'none') *
+        weight.view(-1, 1))[None] / avg_factor
 
 
 def mask_cross_entropy(pred, target, label):
@@ -130,17 +130,37 @@ def _expand_binary_labels(labels, label_weights, label_channels):
     return bin_labels, bin_label_weights
 
 
-def iou_loss(pred_bboxes, target_bboxes, reduction='mean'):
-    ious = bbox_overlaps(pred_bboxes, target_bboxes, is_aligned=True)
-    loss = -ious.log()
+# def iou_loss(pred_bboxes, target_bboxes, reduction='mean'):
+#     ious = bbox_overlaps(pred_bboxes, target_bboxes, is_aligned=True)
+#     loss = -ious.log()
+#
+#     reduction_enum = F._Reduction.get_enum(reduction)
+#     if reduction_enum == 0:
+#         return loss
+#     elif reduction_enum == 1:
+#         return loss.mean()
+#     elif reduction_enum == 2:
+#         return loss.sum()
 
-    reduction_enum = F._Reduction.get_enum(reduction)
-    if reduction_enum == 0:
-        return loss
-    elif reduction_enum == 1:
-        return loss.mean()
-    elif reduction_enum == 2:
-        return loss.sum()
+
+def iou_loss(pos_bbox_pred,
+             pos_bbox_target,
+             pos_weight,
+             pos_rois,
+             target_means,
+             target_stds,
+             avg_factor=None,
+             reg_loss_ratio=2.):
+    if avg_factor is None:
+        avg_factor = torch.sum(pos_weight > 0).float().item() / 4 + 1e-6
+    pos_pred_bboxes = delta2bbox(pos_rois, pos_bbox_pred, target_means,
+                                 target_stds)
+    pos_target_bboxes = delta2bbox(pos_rois, pos_bbox_target, target_means,
+                                   target_stds)
+
+    ious = bbox_overlaps(pos_pred_bboxes, pos_target_bboxes, is_aligned=True)
+    iou_distances = 1 - ious
+    return torch.sum(iou_distances)[None] / avg_factor * reg_loss_ratio
 
 
 def giou_loss(pos_bbox_pred,
