@@ -1,10 +1,16 @@
-import matplotlib.pyplot as plt
 import argparse
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+sns.set()
+
+markers = ['o', '^', '1', 's', 'P', 'p', '*', 'x', 'D']
 
 
 def read_model_zoo(model_zoo_path):
     model_zoo = dict()
-    markers = ['.', '^', '1', 's', 'p', '*', 'x', 'D']
+    global markers
     model_mark = dict()
     with open(model_zoo_path, 'r') as f:
         meet_model = False
@@ -12,7 +18,7 @@ def read_model_zoo(model_zoo_path):
             line = line.strip()
             if '###' in line:
                 meet_model = False
-                if 'R-CNN' in line or 'Retinanet' in line or 'HTC' in line:
+                if 'R-CNN' in line or 'RetinaNet' in line or 'HTC' in line:
                     if 'Libra' in line:
                         continue
                     meet_model = True
@@ -79,11 +85,14 @@ def draw_box_ap(model_zoo, model_mark):
         print('###{}'.format(model_series))
         inf_times = []
         box_aps = []
+        if 'Mask Scoring' in model_series:
+            continue
         for model_name, metric_dict in model_series_dict.items():
             if ('pytorch-2x' not in model_name) and (
                     'pytorch-20e' not in model_name) and (
                         'Faster-2x' not in model_name) and (
-                            'Mask-2x' not in model_name):
+                            'Mask-2x' not in model_name) and (
+                                'caffe-2x' not in model_name):
                 continue
             for k, v in metric_dict.items():
                 if 'Inf time' in k:
@@ -102,7 +111,8 @@ def draw_box_ap(model_zoo, model_mark):
         plt.legend()
         model_count += 1
 
-    plt.savefig('box_ap.pdf')
+    plt.ylim(36, 48)
+    plt.savefig('figures/box_ap.pdf', bbox_inches='tight')
     plt.show()
     plt.cla()
 
@@ -115,11 +125,14 @@ def draw_mask_ap(model_zoo, model_mark):
         mask_aps = []
         if 'Mask' not in model_series and 'HTC' not in model_series:
             continue
+        if 'Fast Mask' in model_series:
+            continue
         for model_name, metric_dict in model_series_dict.items():
             if ('pytorch-2x' not in model_name) and (
                     'pytorch-20e' not in model_name) and (
                         'Faster-2x' not in model_name) and (
-                            'Mask-2x' not in model_name):
+                            'Mask-2x' not in model_name) and (
+                                'caffe-2x' not in model_name):
                 continue
             for k, v in metric_dict.items():
                 if 'Inf time' in k:
@@ -138,9 +151,39 @@ def draw_mask_ap(model_zoo, model_mark):
         plt.legend()
         model_count += 1
 
-    plt.savefig('mask_ap.pdf')
+    plt.ylim(34, 42)
+    plt.savefig('figures/mask_ap.pdf', bbox_inches='tight')
     plt.show()
     plt.cla()
+
+
+def add_extra(model_zoo, model_mark):
+    # add ms rcnn
+    model_series = 'Mask Scoring RCNN'
+    model_dict = dict()
+    model_dict['{}-{}'.format(model_series, 'R-50-FPN-caffe-2x')] = {
+        'box AP': 38.2,
+        'mask AP': 35.9,
+        'Inf time': 10.1,
+    }
+    model_dict['{}-{}'.format(model_series, 'R-101-FPN-caffe-2x')] = {
+        'box AP': 40.7,
+        'mask AP': 37.8,
+        'Inf time': 9.1,
+    }
+    model_dict['{}-{}'.format(model_series, 'R-X-101-32x4d-FPN-caffe-2x')] = {
+        'box AP': 41.5,
+        'mask AP': 38.4,
+        'Inf time': 7.9,
+    }
+    model_dict['{}-{}'.format(model_series, 'R-X-101-64x4d-FPN-caffe-2x')] = {
+        'box AP': 42.2,
+        'mask AP': 38.9,
+        'Inf time': 6.4,
+    }
+    model_zoo[model_series] = model_dict
+    global markers
+    model_mark[model_series] = markers.pop()
 
 
 if __name__ == '__main__':
@@ -149,5 +192,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     model_zoo, model_mark = read_model_zoo(args.model_zoo_path)
+    add_extra(model_zoo, model_mark)
     draw_box_ap(model_zoo, model_mark)
     draw_mask_ap(model_zoo, model_mark)
