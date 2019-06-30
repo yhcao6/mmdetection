@@ -342,42 +342,46 @@ class FCOSHead(nn.Module):
         num_points = points.size(0)
         num_gts = gt_labels.size(0)
 
-        areas = (gt_bboxes[:, 2] - gt_bboxes[:, 0] + 1) * (
-            gt_bboxes[:, 3] - gt_bboxes[:, 1] + 1)
-        # TODO: figure out why these two are different
-        # areas = areas[None].expand(num_points, num_gts)
-        areas = areas[None].repeat(num_points, 1)
-        regress_ranges = regress_ranges[:, None, :].expand(
-            num_points, num_gts, 2)
-        gt_bboxes = gt_bboxes[None].expand(num_points, num_gts, 4)
-        xs, ys = points[:, 0], points[:, 1]
-        xs = xs[:, None].expand(num_points, num_gts)
-        ys = ys[:, None].expand(num_points, num_gts)
+        if num_gts > 0:
+            areas = (gt_bboxes[:, 2] - gt_bboxes[:, 0] + 1) * (
+                gt_bboxes[:, 3] - gt_bboxes[:, 1] + 1)
+            # TODO: figure out why these two are different
+            # areas = areas[None].expand(num_points, num_gts)
+            areas = areas[None].repeat(num_points, 1)
+            regress_ranges = regress_ranges[:, None, :].expand(
+                num_points, num_gts, 2)
+            gt_bboxes = gt_bboxes[None].expand(num_points, num_gts, 4)
+            xs, ys = points[:, 0], points[:, 1]
+            xs = xs[:, None].expand(num_points, num_gts)
+            ys = ys[:, None].expand(num_points, num_gts)
 
-        left = xs - gt_bboxes[..., 0]
-        right = gt_bboxes[..., 2] - xs
-        top = ys - gt_bboxes[..., 1]
-        bottom = gt_bboxes[..., 3] - ys
-        bbox_targets = torch.stack((left, top, right, bottom), -1)
+            left = xs - gt_bboxes[..., 0]
+            right = gt_bboxes[..., 2] - xs
+            top = ys - gt_bboxes[..., 1]
+            bottom = gt_bboxes[..., 3] - ys
+            bbox_targets = torch.stack((left, top, right, bottom), -1)
 
-        # condition1: inside a gt bbox
-        inside_gt_bbox_mask = bbox_targets.min(-1)[0] > 0
+            # condition1: inside a gt bbox
+            inside_gt_bbox_mask = bbox_targets.min(-1)[0] > 0
 
-        # condition2: limit the regression range for each location
-        max_regress_distance = bbox_targets.max(-1)[0]
-        inside_regress_range = (
-            max_regress_distance >= regress_ranges[..., 0]) & (
-                max_regress_distance <= regress_ranges[..., 1])
+            # condition2: limit the regression range for each location
+            max_regress_distance = bbox_targets.max(-1)[0]
+            inside_regress_range = (
+                max_regress_distance >= regress_ranges[..., 0]) & (
+                    max_regress_distance <= regress_ranges[..., 1])
 
-        # if there are still more than one objects for a location,
-        # we choose the one with minimal area
-        areas[inside_gt_bbox_mask == 0] = INF
-        areas[inside_regress_range == 0] = INF
-        min_area, min_area_inds = areas.min(dim=1)
+            # if there are still more than one objects for a location,
+            # we choose the one with minimal area
+            areas[inside_gt_bbox_mask == 0] = INF
+            areas[inside_regress_range == 0] = INF
+            min_area, min_area_inds = areas.min(dim=1)
 
-        labels = gt_labels[min_area_inds]
-        labels[min_area == INF] = 0
-        bbox_targets = bbox_targets[range(num_points), min_area_inds]
+            labels = gt_labels[min_area_inds]
+            labels[min_area == INF] = 0
+            bbox_targets = bbox_targets[range(num_points), min_area_inds]
+        else:
+            labels = gt_labels.new_zeros(num_points,)
+            bbox_targets = gt_bboxes.new_zeros(num_points, 4)
 
         return labels, bbox_targets
 
