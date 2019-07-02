@@ -43,3 +43,10 @@ if [ -d "build" ]; then
     rm -r build
 fi
 $PYTHON setup.py build_ext --inplace
+
+echo "Building PSRoI Pooling op..."
+cd ../psroi_pooling
+if [ -d "build" ]; then
+    rm -r build
+fi
+$PYTHON setup.py build_ext --inplace

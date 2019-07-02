@@ -131,6 +131,24 @@ def build_optimizer(model, optimizer_cfg):
         return optimizer_cls(params, **optimizer_cfg)
 
 
+def make_rfcn_optimizer(cfg, model):
+    if hasattr(model, 'module'):
+        model = model.module
+
+    params = []
+    for key, value in model.named_parameters():
+        if not value.requires_grad:
+            continue
+        lr = cfg.lr
+        weight_decay = cfg.weight_decay
+        if 'bbox_head.conv_new' in key:
+            lr = cfg.lr * 3
+        params += [{"params": [value], "lr": lr, "weight_decay": weight_decay}]
+
+    optimizer = torch.optim.SGD(params, lr, momentum=cfg.momentum)
+    return optimizer
+
+
 def _dist_train(model, dataset, cfg, validate=False):
     # prepare data loaders
     data_loaders = [
@@ -143,7 +161,8 @@ def _dist_train(model, dataset, cfg, validate=False):
     # put model on gpus
     model = MMDistributedDataParallel(model.cuda())
     # build runner
-    optimizer = build_optimizer(model, cfg.optimizer)
+    # optimizer = build_optimizer(model, cfg.optimizer)
+    optimizer = make_rfcn_optimizer(cfg.optimizer, model)
     runner = Runner(model, batch_processor, optimizer, cfg.work_dir,
                     cfg.log_level)
     # register hooks
@@ -184,7 +203,8 @@ def _non_dist_train(model, dataset, cfg, validate=False):
     # put model on gpus
     model = MMDataParallel(model, device_ids=range(cfg.gpus)).cuda()
     # build runner
-    optimizer = build_optimizer(model, cfg.optimizer)
+    # optimizer = build_optimizer(model, cfg.optimizer)
+    optimizer = make_rfcn_optimizer(cfg.optimizer, model)
     runner = Runner(model, batch_processor, optimizer, cfg.work_dir,
                     cfg.log_level)
     runner.register_training_hooks(cfg.lr_config, cfg.optimizer_config,
