@@ -87,8 +87,14 @@ class RFCNHead(BBoxHead):
                 trans_std=0.1)
 
     def init_weights(self):
+        normal_init(self.conv_new, mean=0, std=0.01)
         normal_init(self.conv_rfcn_cls, mean=0, std=0.01)
         normal_init(self.conv_rfcn_reg, mean=0, std=0.01)
+        if self.deform_pspool:
+            self.cls_offset.weight.zero_()
+            self.cls_offset.bias.zero_()
+            self.reg_offset.weight.zero_()
+            self.reg_offset.bias.zero_()
 
     def forward(self, layer4_feat, rois, cls_roi_extractor, reg_roi_extractor):
         feat = self.relu(self.conv_new(layer4_feat))
