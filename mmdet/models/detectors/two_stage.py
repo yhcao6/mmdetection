@@ -81,8 +81,8 @@ class TwoStageDetector(BaseDetector, RPNTestMixin, BBoxTestMixin,
             if not self.share_roi_extractor:
                 self.mask_roi_extractor.init_weights()
 
-    def extract_feat(self, img):
-        x = self.backbone(img)
+    def extract_feat(self, img, gt_bboxes):
+        x = self.backbone(img, gt_bboxes, self.runner.epoch)
         if self.with_neck:
             x = self.neck(x)
         return x
@@ -95,7 +95,7 @@ class TwoStageDetector(BaseDetector, RPNTestMixin, BBoxTestMixin,
                       gt_bboxes_ignore=None,
                       gt_masks=None,
                       proposals=None):
-        x = self.extract_feat(img)
+        x = self.extract_feat(img, gt_bboxes)
 
         losses = dict()
 

@@ -11,7 +11,7 @@ from mmdet.ops import DeformConv, ModulatedDeformConv, ContextBlock
 from mmdet.models.plugins import GeneralizedAttention
 
 from ..registry import BACKBONES
-from ..utils import build_conv_layer, build_norm_layer
+from ..utils import build_conv_layer, build_norm_layer, AssisExc
 
 
 class BasicBlock(nn.Module):
@@ -381,7 +381,8 @@ class ResNet(nn.Module):
                  gen_attention=None,
                  stage_with_gen_attention=((), (), (), ()),
                  with_cp=False,
-                 zero_init_residual=True):
+                 zero_init_residual=True,
+                 optimizer=None):
         super(ResNet, self).__init__()
         if depth not in self.arch_settings:
             raise KeyError('invalid depth {} for resnet'.format(depth))
@@ -412,6 +413,8 @@ class ResNet(nn.Module):
         self.block, stage_blocks = self.arch_settings[depth]
         self.stage_blocks = stage_blocks[:num_stages]
         self.inplanes = 64
+        self.optimizer = optimizer
+        self.ae = AssisExc()
 
         self._make_stem_layer()
 
@@ -504,7 +507,7 @@ class ResNet(nn.Module):
         else:
             raise TypeError('pretrained must be a str or None')
 
-    def forward(self, x):
+    def forward(self, x, gt_bboxes, epoch):
         x = self.conv1(x)
         x = self.norm1(x)
         x = self.relu(x)
@@ -513,6 +516,8 @@ class ResNet(nn.Module):
         for i, layer_name in enumerate(self.res_layers):
             res_layer = getattr(self, layer_name)
             x = res_layer(x)
+            if i == 2:
+                x = self.ae(x, gt_bboxes, stride=16, epoch=epoch)
             if i in self.out_indices:
                 outs.append(x)
         return tuple(outs)
