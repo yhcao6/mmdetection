@@ -77,7 +77,8 @@ class ConvModule(nn.Module):
                  norm_cfg=None,
                  activation='relu',
                  inplace=True,
-                 activate_last=True):
+                 activate_last=True,
+                 activate_first=False):
         super(ConvModule, self).__init__()
         assert conv_cfg is None or isinstance(conv_cfg, dict)
         assert norm_cfg is None or isinstance(norm_cfg, dict)
@@ -86,6 +87,7 @@ class ConvModule(nn.Module):
         self.activation = activation
         self.inplace = inplace
         self.activate_last = activate_last
+        self.activate_first = activate_first
 
         self.with_norm = norm_cfg is not None
         self.with_activatation = activation is not None
@@ -153,6 +155,12 @@ class ConvModule(nn.Module):
                 x = self.norm(x)
             if activate and self.with_activatation:
                 x = self.activate(x)
+        elif self.activate_first:
+            if activate and self.with_activatation:
+                x = self.activate(x)
+            x = self.conv(x)
+            if norm and self.with_norm:
+                x = self.norm(x)
         else:
             # WARN: this may be removed or modified
             if norm and self.with_norm:

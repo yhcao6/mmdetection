@@ -59,19 +59,14 @@ class NASFPN(nn.Module):
                 out_channels,
                 1,
                 conv_cfg=conv_cfg,
-                norm_cfg=norm_cfg,
-                activation=self.activation,
-                inplace=False)
+                activation=None)
             self.lateral_convs.append(l_conv)
         for i in range(len(in_channels), self.num_laterals + 1):
             l_conv = ConvModule(
                 in_channels[-1],
                 out_channels,
                 1,
-                conv_cfg=conv_cfg,
-                norm_cfg=norm_cfg,
-                activation=self.activation,
-                inplace=False)
+                conv_cfg=conv_cfg)
             self.lateral_convs.append(l_conv)
 
         for i in range(num_fpn_convs):
