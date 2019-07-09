@@ -75,7 +75,7 @@ class RFCN(BaseDetector, RPNTestMixin):
                 proposal_list[i],
                 gt_bboxes[i],
                 gt_labels[i],
-                feats=layer4_feat)
+                feats=layer4_feat[i][None])
             sampling_results.append(sampling_result)
 
         rois = bbox2roi([res.bboxes for res in sampling_results])
