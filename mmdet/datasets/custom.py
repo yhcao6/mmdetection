@@ -5,11 +5,12 @@ import numpy as np
 from mmcv.parallel import DataContainer as DC
 from torch.utils.data import Dataset
 
+from .auto_augment import auto_augment
+from .extra_aug import ExtraAugmentation
 from .registry import DATASETS
 from .transforms import (ImageTransform, BboxTransform, MaskTransform,
                          SegMapTransform, Numpy2Tensor)
 from .utils import to_tensor, random_scale
-from .extra_aug import ExtraAugmentation
 
 
 @DATASETS.register_module
@@ -54,6 +55,7 @@ class CustomDataset(Dataset):
                  seg_prefix=None,
                  seg_scale_factor=1,
                  extra_aug=None,
+                 auto_augment_policies=None,
                  resize_keep_ratio=True,
                  test_mode=False):
         # prefix of images path
@@ -127,6 +129,9 @@ class CustomDataset(Dataset):
 
         # image rescale if keep ratio
         self.resize_keep_ratio = resize_keep_ratio
+
+        # auto augment
+        self.auto_augment_policies = auto_augment_policies
 
     def __len__(self):
         return len(self.img_infos)
@@ -211,6 +216,11 @@ class CustomDataset(Dataset):
             img, gt_bboxes, gt_labels = self.extra_aug(img, gt_bboxes,
                                                        gt_labels)
 
+        # use auto augment policy
+        if self.auto_augment_policies is not None:
+            img, gt_bboxes = auto_augment(img, gt_bboxes,
+                                          self.auto_augment_policies)
+
         # apply transforms
         flip = True if np.random.rand() < self.flip_ratio else False
         # randomly sample a scale
@@ -220,8 +230,8 @@ class CustomDataset(Dataset):
         img = img.copy()
         if self.with_seg:
             gt_seg = mmcv.imread(
-                osp.join(self.seg_prefix, img_info['file_name'].replace(
-                    'jpg', 'png')),
+                osp.join(self.seg_prefix,
+                         img_info['file_name'].replace('jpg', 'png')),
                 flag='unchanged')
             gt_seg = self.seg_transform(gt_seg.squeeze(), img_scale, flip)
             gt_seg = mmcv.imrescale(
@@ -230,8 +240,8 @@ class CustomDataset(Dataset):
         if self.proposals is not None:
             proposals = self.bbox_transform(proposals, img_shape, scale_factor,
                                             flip)
-            proposals = np.hstack(
-                [proposals, scores]) if scores is not None else proposals
+            proposals = np.hstack([proposals, scores
+                                   ]) if scores is not None else proposals
         gt_bboxes = self.bbox_transform(gt_bboxes, img_shape, scale_factor,
                                         flip)
         if self.with_crowd:
@@ -296,8 +306,8 @@ class CustomDataset(Dataset):
                     score = None
                 _proposal = self.bbox_transform(proposal, img_shape,
                                                 scale_factor, flip)
-                _proposal = np.hstack(
-                    [_proposal, score]) if score is not None else _proposal
+                _proposal = np.hstack([_proposal, score
+                                       ]) if score is not None else _proposal
                 _proposal = to_tensor(_proposal)
             else:
                 _proposal = None
