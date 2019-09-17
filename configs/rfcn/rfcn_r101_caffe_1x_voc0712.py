@@ -140,12 +140,12 @@ data = dict(
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'voc07_test.pkl',
-        img_prefix=data_root + 'VOC2007/',
+        img_prefix=data_root,
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'voc07_test.pkl',
-        img_prefix=data_root + 'VOC2007/',
+        img_prefix=data_root,
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(
