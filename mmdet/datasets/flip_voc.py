@@ -1,10 +1,13 @@
+import copy
+
 import mmcv
 
 from .custom import CustomDataset
+from .registry import DATASETS
 from .transforms import BboxTransform
-import copy
 
 
+@DATASETS.register_module
 class FlipVOCDataset(CustomDataset):
 
     CLASSES = ('aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car',

@@ -1,8 +1,8 @@
-from .dcn import (DeformConv, DeformConvPack, ModulatedDeformConv,
-                  ModulatedDeformConvPack, DeformRoIPooling,
-                  DeformRoIPoolingPack, ModulatedDeformRoIPoolingPack,
-                  deform_conv, modulated_deform_conv, deform_roi_pooling)
-from .gcb import ContextBlock
+from .context_block import ContextBlock
+from .dcn import (DeformConv, DeformConvPack, DeformRoIPooling,
+                  DeformRoIPoolingPack, ModulatedDeformConv,
+                  ModulatedDeformConvPack, ModulatedDeformRoIPoolingPack,
+                  deform_conv, deform_roi_pooling, modulated_deform_conv)
 from .masked_conv import MaskedConv2d
 from .nms import nms, soft_nms
 from .psroi_pooling import PSRoIPool

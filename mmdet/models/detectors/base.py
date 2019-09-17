@@ -3,10 +3,10 @@ from abc import ABCMeta, abstractmethod
 
 import mmcv
 import numpy as np
-import torch.nn as nn
 import pycocotools.mask as maskUtils
+import torch.nn as nn
 
-from mmdet.core import tensor2imgs, get_classes
+from mmdet.core import auto_fp16, get_classes, tensor2imgs
 
 
 class BaseDetector(nn.Module):
@@ -16,6 +16,7 @@ class BaseDetector(nn.Module):
 
     def __init__(self):
         super(BaseDetector, self).__init__()
+        self.fp16_enabled = False
 
     @property
     def with_neck(self):
@@ -79,18 +80,14 @@ class BaseDetector(nn.Module):
         else:
             return self.aug_test(imgs, img_metas, **kwargs)
 
+    @auto_fp16(apply_to=('img', ))
     def forward(self, img, img_meta, return_loss=True, **kwargs):
         if return_loss:
             return self.forward_train(img, img_meta, **kwargs)
         else:
             return self.forward_test(img, img_meta, **kwargs)
 
-    def show_result(self,
-                    data,
-                    result,
-                    img_norm_cfg,
-                    dataset=None,
-                    score_thr=0.3):
+    def show_result(self, data, result, dataset=None, score_thr=0.3):
         if isinstance(result, tuple):
             bbox_result, segm_result = result
         else:
@@ -98,7 +95,7 @@ class BaseDetector(nn.Module):
 
         img_tensor = data['img'][0]
         img_metas = data['img_meta'][0].data[0]
-        imgs = tensor2imgs(img_tensor, **img_norm_cfg)
+        imgs = tensor2imgs(img_tensor, **img_metas[0]['img_norm_cfg'])
         assert len(imgs) == len(img_metas)
 
         if dataset is None:

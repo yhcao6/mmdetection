@@ -1,9 +1,9 @@
 import torch.nn as nn
 
-from .base import BaseDetector
+from mmdet.core import bbox2result
 from .. import builder
 from ..registry import DETECTORS
-from mmdet.core import bbox2result
+from .base import BaseDetector
 
 
 @DETECTORS.register_module
@@ -41,6 +41,11 @@ class SingleStageDetector(BaseDetector):
         if self.with_neck:
             x = self.neck(x)
         return x
+
+    def forward_dummy(self, img):
+        x = self.extract_feat(img)
+        outs = self.bbox_head(x)
+        return outs
 
     def forward_train(self,
                       img,

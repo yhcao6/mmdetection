@@ -2,14 +2,12 @@ import logging
 
 import torch.nn as nn
 import torch.utils.checkpoint as cp
-from torch.nn.modules.batchnorm import _BatchNorm
-
 from mmcv.cnn import constant_init, kaiming_init
 from mmcv.runner import load_checkpoint
+from torch.nn.modules.batchnorm import _BatchNorm
 
-from mmdet.ops import DeformConv, ModulatedDeformConv, ContextBlock
 from mmdet.models.plugins import GeneralizedAttention
-
+from mmdet.ops import ContextBlock, DeformConv, ModulatedDeformConv
 from ..registry import BACKBONES
 from ..utils import build_conv_layer, build_norm_layer
 
@@ -163,7 +161,7 @@ class Bottleneck(nn.Module):
                 bias=False)
         else:
             assert conv_cfg is None, 'conv_cfg must be None for DCN'
-            deformable_groups = dcn.get('deformable_groups', 1)
+            self.deformable_groups = dcn.get('deformable_groups', 1)
             if not self.with_modulated_dcn:
                 conv_op = DeformConv
                 offset_channels = 18
@@ -172,7 +170,7 @@ class Bottleneck(nn.Module):
                 offset_channels = 27
             self.conv2_offset = nn.Conv2d(
                 planes,
-                deformable_groups * offset_channels,
+                self.deformable_groups * offset_channels,
                 kernel_size=3,
                 stride=self.conv2_stride,
                 padding=dilation,
@@ -184,7 +182,7 @@ class Bottleneck(nn.Module):
                 stride=self.conv2_stride,
                 padding=dilation,
                 dilation=dilation,
-                deformable_groups=deformable_groups,
+                deformable_groups=self.deformable_groups,
                 bias=False)
         self.add_module(self.norm2_name, norm2)
         self.conv3 = build_conv_layer(
@@ -232,8 +230,9 @@ class Bottleneck(nn.Module):
                 out = self.conv2(out)
             elif self.with_modulated_dcn:
                 offset_mask = self.conv2_offset(out)
-                offset = offset_mask[:, :18, :, :]
-                mask = offset_mask[:, -9:, :, :].sigmoid()
+                offset = offset_mask[:, :18 * self.deformable_groups, :, :]
+                mask = offset_mask[:, -9 * self.deformable_groups:, :, :]
+                mask = mask.sigmoid()
                 out = self.conv2(out, offset, mask)
             else:
                 offset = self.conv2_offset(out)
@@ -297,11 +296,11 @@ def make_res_layer(block,
     layers = []
     layers.append(
         block(
-            inplanes,
-            planes,
-            stride,
-            dilation,
-            downsample,
+            inplanes=inplanes,
+            planes=planes,
+            stride=stride,
+            dilation=dilation,
+            downsample=downsample,
             style=style,
             with_cp=with_cp,
             conv_cfg=conv_cfg,
@@ -314,10 +313,10 @@ def make_res_layer(block,
     for i in range(1, blocks):
         layers.append(
             block(
-                inplanes,
-                planes,
-                1,
-                dilation,
+                inplanes=inplanes,
+                planes=planes,
+                stride=1,
+                dilation=dilation,
                 style=style,
                 with_cp=with_cp,
                 conv_cfg=conv_cfg,
