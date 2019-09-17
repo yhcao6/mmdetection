@@ -9,13 +9,11 @@ class RFCNOHEMSampler:
 
     def __init__(self,
                  num,
-                 pos_fraction,
                  context,
                  neg_pos_ub=-1,
                  add_gt_as_proposals=True,
                  **kwargs):
         self.num = num
-        self.pos_fraction = pos_fraction
         self.neg_pos_ub = neg_pos_ub
         self.add_gt_as_proposals = add_gt_as_proposals
         self.bbox_head = context.bbox_head

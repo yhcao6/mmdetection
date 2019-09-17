@@ -128,6 +128,10 @@ def build_optimizer(model, optimizer_cfg):
                     param_group['weight_decay'] = base_wd * bias_decay_mult
             # otherwise use the global settings
 
+            if name in paramwise_options.keys():
+                if 'lr_mult' in paramwise_options[name]:
+                    param_group[
+                        'lr'] = base_lr * paramwise_options[name]['lr_mult']
             params.append(param_group)
 
         optimizer_cls = getattr(torch.optim, optimizer_cfg.pop('type'))
