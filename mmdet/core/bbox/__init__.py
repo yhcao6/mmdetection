@@ -1,6 +1,7 @@
 from .assigners import AssignResult, BaseAssigner, MaxIoUAssigner
 from .bbox_target import bbox_target
-from .geometry import bbox_overlaps
+# from .geometry import bbox_overlaps
+from mmdet.ops import bbox_overlaps
 from .samplers import (BaseSampler, CombinedSampler,
                        InstanceBalancedPosSampler, IoUBalancedNegSampler,
                        PseudoSampler, RandomSampler, SamplingResult)
