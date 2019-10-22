@@ -1,10 +1,13 @@
 from __future__ import division
+
 import re
 from collections import OrderedDict
 
 import torch
-from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
+import torch.distributed as dist
+from mmcv.parallel import MMDataParallel
 from mmcv.runner import DistSamplerSeedHook, Runner, obj_from_dict
+from torch.nn.parallel import DistributedDataParallel
 
 from mmdet import datasets
 from mmdet.core import (CocoDistEvalmAPHook, CocoDistEvalRecallHook,
@@ -35,6 +38,8 @@ def parse_losses(losses):
 
 
 def batch_processor(model, data, train_mode):
+    if dist.is_available():
+        data = {k: v.data[0] for k, v in data.items()}
     losses = model(**data)
     loss, log_vars = parse_losses(losses)
 
@@ -149,7 +154,9 @@ def _dist_train(model, dataset, cfg, validate=False):
         for ds in dataset
     ]
     # put model on gpus
-    model = MMDistributedDataParallel(model.cuda())
+    local_rank = dist.get_rank()
+    model = DistributedDataParallel(
+        model.cuda(), [local_rank], output_device=local_rank)
 
     # build runner
     optimizer = build_optimizer(model, cfg.optimizer)
