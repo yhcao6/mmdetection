@@ -496,6 +496,7 @@ class ResNet(nn.Module):
     def init_weights(self, pretrained=None):
         if isinstance(pretrained, str):
             logger = logging.getLogger()
+            logger.info(print(self))
             load_checkpoint(self, pretrained, strict=False, logger=logger)
         elif pretrained is None:
             for m in self.modules():
