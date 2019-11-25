@@ -1,3 +1,4 @@
+import logging
 import torch
 import torch.nn as nn
 
@@ -60,6 +61,8 @@ class TwoStageDetector(BaseDetector, RPNTestMixin, BBoxTestMixin,
         self.test_cfg = test_cfg
 
         self.init_weights(pretrained=pretrained)
+        logger = logging.getLogger()
+        logger.info(self)
 
     @property
     def with_rpn(self):

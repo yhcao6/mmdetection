@@ -91,6 +91,7 @@ def make_cuda_ext(name, module, sources):
 
     return CUDAExtension(
         name='{}.{}'.format(module, name),
+        define_macros=[("WITH_CUDA", None)],
         sources=[os.path.join(*module.split('.'), p) for p in sources],
         extra_compile_args={
             'cxx': [],
@@ -201,6 +202,13 @@ if __name__ == '__main__':
                 module='mmdet.ops.masked_conv',
                 sources=[
                     'src/masked_conv2d_cuda.cpp', 'src/masked_conv2d_kernel.cu'
+                ]),
+            make_cuda_ext(
+                name='roialign_v2',
+                module='mmdet.ops.roi_align_v2',
+                sources=[
+#                     'src/roi_align_v2.cpp',
+                    'src/ROIAlign.cpp', 'src/ROIAlign_cpu.cpp', 'src/ROIAlign_cuda.cu'
                 ]),
         ],
         cmdclass={'build_ext': BuildExtension},
