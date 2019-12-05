@@ -194,8 +194,8 @@ class RandomFlip(object):
         assert bboxes.shape[-1] % 4 == 0
         w = img_shape[1]
         flipped = bboxes.copy()
-        flipped[..., 0::4] = w - bboxes[..., 2::4] - 1
-        flipped[..., 2::4] = w - bboxes[..., 0::4] - 1
+        flipped[..., 0::4] = w - bboxes[..., 2::4]
+        flipped[..., 2::4] = w - bboxes[..., 0::4]
         return flipped
 
     def __call__(self, results):

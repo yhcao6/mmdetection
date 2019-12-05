@@ -50,7 +50,7 @@ class AnchorGenerator(object):
                 x_ctr - 0.5 * ws, y_ctr - 0.5 * hs,
                 x_ctr + 0.5 * ws, y_ctr + 0.5 * hs
             ],
-            dim=-1).round()
+            dim=-1)# .round()
         # yapf: enable
 
         return base_anchors
