@@ -375,6 +375,11 @@ class RandomCrop(object):
                     valid_gt_masks.append(gt_mask)
                 results['gt_masks'] = valid_gt_masks
 
+            # not tested
+            if 'gt_semantic_seg' in results:
+                crop_seg = results['gt_semantic_seg'][crop_y1:crop_y2,
+                                                      crop_x1:crop_x2]
+                results['gt_semantic_seg'] = crop_seg
         return results
 
     def __repr__(self):
