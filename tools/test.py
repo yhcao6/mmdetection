@@ -64,10 +64,10 @@ def multi_gpu_test(model, data_loader, tmpdir=None, gpu_collect=False):
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
-        results.append(result)
+        results.extend(result)
 
         if rank == 0:
-            batch_size = data['img'][0].size(0)
+            batch_size = len(data['img'][0].data[0])
             for _ in range(batch_size * world_size):
                 prog_bar.update()
 
@@ -219,7 +219,7 @@ def main():
     dataset = build_dataset(cfg.data.test)
     data_loader = build_dataloader(
         dataset,
-        imgs_per_gpu=1,
+        imgs_per_gpu=2,
         workers_per_gpu=cfg.data.workers_per_gpu,
         dist=distributed,
         shuffle=False)
