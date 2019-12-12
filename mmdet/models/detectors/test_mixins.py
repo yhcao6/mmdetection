@@ -120,6 +120,8 @@ class MaskTestMixin(object):
                          det_labels,
                          rescale=False):
         num_imgs = len(det_bboxes)
+        if num_imgs == 1 and det_bboxes[0].shape[0] == 0:
+            return [[[] for _ in range(self.mask_head.num_classes - 1)]]
         _bboxes = [
             det_bboxes[i][:, :4] *
             img_meta[i]['scale_factor'] if rescale else det_bboxes[i][:, :4]
