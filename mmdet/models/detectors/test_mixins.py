@@ -54,10 +54,11 @@ class BBoxTestMixin(object):
         num_pp_per_img = [len(p) for p in proposals]
         rois = rois.split(num_pp_per_img, 0)
         cls_score = cls_score.split(num_pp_per_img, 0)
-        bbox_pred = bbox_pred.split(num_pp_per_img, 0)
+        # some detector with_reg is False, bbox_pred will be None
+        bbox_pred = bbox_pred.split(
+            num_pp_per_img, 0) if bbox_pred is not None else [None, None]
         det_bboxes = []
         det_labels = []
-
         for i in range(len(proposals)):
             img_shape = img_meta[i]['img_shape']
             scale_factor = img_meta[i]['scale_factor']
