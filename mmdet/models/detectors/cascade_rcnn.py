@@ -316,15 +316,16 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
         proposal_list = self.simple_test_rpn(
             x, img_meta, self.test_cfg.rpn) if proposals is None else proposals
 
+        num_imgs = len(proposal_list)
+        num_pp_per_img = tuple(len(proposals) for proposals in proposal_list)
+        img_shapes = tuple(meta['img_shape'] for meta in img_meta)
+        scale_factors = tuple(meta['scale_factor'] for meta in img_meta)
+
         # "ms" in variable names means multi-stage
         ms_bbox_result = {}
         ms_segm_result = {}
         ms_scores = []
         rcnn_test_cfg = self.test_cfg.rcnn
-
-        num_pp_per_img = [len(proposals) for proposals in proposal_list]
-        img_shapes = tuple(meta['img_shape'] for meta in img_meta)
-        scale_factors = tuple(meta['scale_factor'] for meta in img_meta)
 
         rois = bbox2roi(proposal_list)
         for i in range(self.num_stages):
@@ -343,24 +344,24 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
             bbox_pred = bbox_pred.split(num_pp_per_img, 0)
             ms_scores.append(cls_score)
 
-            num_img = len(proposal_list)
             if i < self.num_stages - 1:
                 bbox_label = [s.argmax(dim=1) for s in cls_score]
-                rois = [
+                rois = torch.cat([
                     bbox_head.regress_by_class(rois[i], bbox_label[i],
                                                bbox_pred[i], img_meta[i])
-                    for i in range(num_img)
-                ]
-                rois = torch.cat(rois, 0)
+                    for i in range(num_imgs)
+                ])
 
+        cls_score = [
+            sum([score[i] for score in ms_scores]) / float(len(ms_scores))
+            for i in range(num_imgs)
+        ]
         det_bboxes = []
         det_labels = []
-        for i in range(num_img):
-            ms_score = [s[i] for s in ms_scores]
-            cls_score = sum(ms_score) / self.num_stages
+        for i in range(num_imgs):
             det_bbox, det_label = self.bbox_head[-1].get_det_bboxes(
                 rois[i],
-                cls_score,
+                cls_score[i],
                 bbox_pred[i],
                 img_shapes[i],
                 scale_factors[i],
@@ -370,29 +371,25 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
             det_labels.append(det_label)
         bbox_results = [
             bbox2result(det_bboxes[i], det_labels[i],
-                        self.bbox_head[-1].num_classes) for i in range(num_img)
+                        self.bbox_head[-1].num_classes)
+            for i in range(num_imgs)
         ]
         ms_bbox_result['ensemble'] = bbox_results
 
         if self.with_mask:
-            segm_results = []
-            if num_img == 1 and det_bboxes[0].shape[0] == 0:
+            if num_imgs == 1 and det_bboxes[0].shape[0] == 0:
                 segm_results = [
                     [[] for _ in range(self.mask_head[-1].num_classes - 1)]
                 ]
             else:
                 _bboxes = []
-                for i in range(num_img):
+                for i in range(num_imgs):
                     scale_factor = scale_factors[i]
-                    if isinstance(scale_factor, float):  # aspect ratio fixed
-                        _bboxes.append(
-                            det_bboxes[i][:, :4] *
-                            scale_factor if rescale else det_bboxes[i])
-                    else:
-                        _bboxes.append(det_bboxes[i][:, :4] *
-                                       torch.from_numpy(scale_factor).
-                                       to(det_bboxes[i].device)
-                                       if rescale else det_bboxes[i])
+                    if not isinstance(scale_factor, float):
+                        scale_factor = torch.from_numpy(scale_factor).to(
+                            det_bboxes[i].device)
+                    _bboxes.append(det_bboxes[i][:, :4] *
+                                   scale_factor if rescale else det_bboxes[i])
                 mask_rois = bbox2roi(_bboxes)
                 num_mask_rois_per_img = tuple(
                     _bbox.size(0) for _bbox in _bboxes)
@@ -405,10 +402,12 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
                         mask_feats = self.shared_head(mask_feats)
                     mask_pred = self.mask_head[i](mask_feats)
                     mask_pred = mask_pred.split(num_mask_rois_per_img, 0)
-                    mask_pred = [m.sigmoid().cpu().numpy() for m in mask_pred]
-                    aug_masks.append(mask_pred)
-                for i in range(num_img):
-                    aug_mask = [m[i] for m in aug_masks]
+                    aug_masks.append(
+                        [m.sigmoid().cpu().numpy() for m in mask_pred])
+
+                segm_results = []
+                for i in range(num_imgs):
+                    aug_mask = [mask[i] for mask in aug_masks]
                     merged_masks = merge_aug_masks(aug_mask, [[img_meta[i]]] *
                                                    self.num_stages,
                                                    self.test_cfg.rcnn)
