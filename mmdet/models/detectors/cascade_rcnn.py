@@ -317,8 +317,8 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
             x, img_meta, self.test_cfg.rpn) if proposals is None else proposals
 
         num_imgs = len(proposal_list)
-        num_pp_per_img = tuple(len(proposals) for proposals in proposal_list)
         img_shapes = tuple(meta['img_shape'] for meta in img_meta)
+        ori_shapes = [meta['ori_shape'] for meta in img_meta]
         scale_factors = tuple(meta['scale_factor'] for meta in img_meta)
 
         # "ms" in variable names means multi-stage
@@ -339,6 +339,8 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
 
             cls_score, bbox_pred = bbox_head(bbox_feats)
 
+            num_pp_per_img = tuple(
+                len(proposals) for proposals in proposal_list)
             rois = rois.split(num_pp_per_img, 0)
             cls_score = cls_score.split(num_pp_per_img, 0)
             bbox_pred = bbox_pred.split(num_pp_per_img, 0)
@@ -413,7 +415,7 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
                                                    self.test_cfg.rcnn)
                     segm_result = self.mask_head[-1].get_seg_masks(
                         merged_masks, _bboxes[i], det_labels[i], rcnn_test_cfg,
-                        img_meta[i]['ori_shape'], scale_factors[i], rescale)
+                        ori_shapes[i], scale_factors[i], rescale)
                     segm_results.append(segm_result)
             ms_segm_result['ensemble'] = segm_results
 

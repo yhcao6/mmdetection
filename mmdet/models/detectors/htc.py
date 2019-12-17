@@ -317,6 +317,7 @@ class HybridTaskCascade(CascadeRCNN):
         else:
             semantic_feat = None
 
+        num_imgs = len(proposal_list)
         img_shapes = [meta['img_shape'] for meta in img_meta]
         ori_shapes = [meta['ori_shape'] for meta in img_meta]
         scale_factors = [meta['scale_factor'] for meta in img_meta]
@@ -333,7 +334,6 @@ class HybridTaskCascade(CascadeRCNN):
             cls_score, bbox_pred = self._bbox_forward_test(
                 i, x, rois, semantic_feat=semantic_feat)
 
-            num_imgs = len(proposal_list)
             num_pp_per_img = tuple(len(p) for p in proposal_list)
             rois = rois.split(num_pp_per_img, 0)
             cls_score = cls_score.split(num_pp_per_img, 0)
