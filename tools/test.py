@@ -30,7 +30,7 @@ def single_gpu_test(model, data_loader, show=False):
         if show:
             model.module.show_result(data, result)
 
-        batch_size = data['img'][0].size(0)
+        batch_size = len(data['img'][0].data[0])
         for _ in range(batch_size):
             prog_bar.update()
     return results
@@ -219,7 +219,7 @@ def main():
     dataset = build_dataset(cfg.data.test)
     data_loader = build_dataloader(
         dataset,
-        imgs_per_gpu=2,
+        imgs_per_gpu=1,
         workers_per_gpu=cfg.data.workers_per_gpu,
         dist=distributed,
         shuffle=False)
