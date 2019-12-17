@@ -344,7 +344,6 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
             ms_scores.append(cls_score)
 
             num_img = len(proposal_list)
-
             if i < self.num_stages - 1:
                 bbox_label = [s.argmax(dim=1) for s in cls_score]
                 rois = [
