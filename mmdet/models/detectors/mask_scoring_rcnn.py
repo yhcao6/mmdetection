@@ -214,5 +214,6 @@ class MaskScoringRCNN(TwoStageDetector):
                     mask_iou_preds[i], det_bboxes[i], det_labels[i])
                 segm_results.append(segm_result)
                 mask_scores.append(mask_score)
-        return ((segm_result, mask_score)
-                for segm_result, mask_score in zip(segm_results, mask_scores))
+        return tuple(
+            (segm_result, mask_score)
+            for segm_result, mask_score in zip(segm_results, mask_scores))

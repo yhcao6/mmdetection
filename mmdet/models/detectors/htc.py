@@ -425,9 +425,10 @@ class HybridTaskCascade(CascadeRCNN):
             ms_segm_result['ensemble'] = segm_results
 
         if self.with_mask:
-            results = ((
-                bbox_result, segm_result) for bbox_result, segm_result in zip(
-                    ms_bbox_result['ensemble'], ms_segm_result['ensemble']))
+            results = [
+                (bbox_result, segm_result) for bbox_result, segm_result in zip(
+                    ms_bbox_result['ensemble'], ms_segm_result['ensemble'])
+            ]
         else:
             results = ms_bbox_result['ensemble']
 

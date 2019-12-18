@@ -282,9 +282,10 @@ class TwoStageDetector(BaseDetector, RPNTestMixin, BBoxTestMixin,
         else:
             segm_results = self.simple_test_mask(
                 x, img_meta, det_bboxes, det_labels, rescale=rescale)
-            return ((bbox_result, segm_result)
-                    for bbox_result, segm_result in zip(
-                        bbox_results, segm_results))
+            return [
+                (bbox_result, segm_result)
+                for bbox_result, segm_result in zip(bbox_results, segm_results)
+            ]
 
     def aug_test(self, imgs, img_metas, rescale=False):
         """Test with augmentations.
