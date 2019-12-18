@@ -212,30 +212,30 @@ class GridRCNN(TwoStageDetector):
         grid_rois = bbox2roi([det_bbox[:, :4] for det_bbox in det_bboxes])
         grid_feats = self.grid_roi_extractor(
             x[:len(self.grid_roi_extractor.featmap_strides)], grid_rois)
-        self.grid_head.test_mode = True
-        grid_pred = self.grid_head(grid_feats)
+        if grid_rois.shape[0] != 0:
+            self.grid_head.test_mode = True
+            grid_pred = self.grid_head(grid_feats)
 
-        num_roi_per_img = [len(det_bbox) for det_bbox in det_bboxes]
-        grid_pred = {
-            k: v.split(num_roi_per_img, 0)
-            for k, v in grid_pred.items()
-        }
+            # split batch grid head prediction back to each image
+            num_roi_per_img = tuple(len(det_bbox) for det_bbox in det_bboxes)
+            grid_pred = {
+                k: v.split(num_roi_per_img, 0)
+                for k, v in grid_pred.items()
+            }
 
-        grid_head_det_bboxes = []
-        num_imgs = len(det_bboxes)
-        for i in range(num_imgs):
-            if det_bboxes[i].shape[0] != 0:
+            # apply bbox post-processing to each image individually
+            bbox_results = []
+            num_imgs = len(det_bboxes)
+            for i in range(num_imgs):
                 det_bbox = self.grid_head.get_bboxes(det_bboxes[i],
                                                      grid_pred['fused'][i],
                                                      [img_meta[i]])
                 if rescale:
                     det_bbox[:, :4] /= img_meta[i]['scale_factor']
-                grid_head_det_bboxes.append(det_bbox)
-            else:
-                grid_head_det_bboxes.append(torch.Tensor([]))
-        bbox_results = [
-            bbox2result(grid_head_det_bboxes[i], det_labels[i],
-                        self.bbox_head.num_classes) for i in range(num_imgs)
-        ]
+                bbox_results.append(
+                    bbox2result(det_bbox, det_labels[i],
+                                self.bbox_head.num_classes))
+        else:
+            bbox_results = [torch.Tensor([]) for _ in range(len(det_bboxes))]
 
         return bbox_results
