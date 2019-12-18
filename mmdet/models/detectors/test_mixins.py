@@ -123,12 +123,16 @@ class MaskTestMixin(object):
                          det_bboxes,
                          det_labels,
                          rescale=False):
+        # image shapes of images in the batch
         ori_shapes = tuple(meta['ori_shape'] for meta in img_meta)
         scale_factors = tuple(meta['scale_factor'] for meta in img_meta)
         num_imgs = len(det_bboxes)
         if num_imgs == 1 and det_bboxes[0].shape[0] == 0:
-            return [[[] for _ in range(self.mask_head.num_classes - 1)]]
+            segm_results = [[[]
+                             for _ in range(self.mask_head.num_classes - 1)]]
         else:
+            # if det_bboxes is rescaled to the original image size, we need to
+            # rescale it back to the testing scale to obtain RoIs.
             if rescale and not isinstance(scale_factors[0], float):
                 scale_factors = [
                     torch.from_numpy(scale_factor).to(det_bboxes.device)
@@ -162,8 +166,7 @@ class MaskTestMixin(object):
                         self.test_cfg.rcnn, ori_shapes[i], scale_factors[i],
                         rescale)
                     segm_results.append(segm_result)
-
-            return segm_results
+        return segm_results
 
     def aug_test_mask(self, feats, img_metas, det_bboxes, det_labels):
         if det_bboxes.shape[0] == 0:
