@@ -318,7 +318,7 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
 
         num_imgs = len(proposal_list)
         img_shapes = tuple(meta['img_shape'] for meta in img_meta)
-        ori_shapes = [meta['ori_shape'] for meta in img_meta]
+        ori_shapes = tuple(meta['ori_shape'] for meta in img_meta)
         scale_factors = tuple(meta['scale_factor'] for meta in img_meta)
 
         # "ms" in variable names means multi-stage
@@ -339,6 +339,7 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
 
             cls_score, bbox_pred = bbox_head(bbox_feats)
 
+            # split batch bbox prediction back to each image
             num_pp_per_img = tuple(
                 len(proposals) for proposals in proposal_list)
             rois = rois.split(num_pp_per_img, 0)
@@ -354,10 +355,13 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
                     for i in range(num_imgs)
                 ])
 
+        # average scores of each image by stages
         cls_score = [
             sum([score[i] for score in ms_scores]) / float(len(ms_scores))
             for i in range(num_imgs)
         ]
+
+        # apply bbox post-processing to each image individually
         det_bboxes = []
         det_labels = []
         for i in range(num_imgs):
@@ -380,9 +384,8 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
 
         if self.with_mask:
             if num_imgs == 1 and det_bboxes[0].shape[0] == 0:
-                segm_results = [
-                    [[] for _ in range(self.mask_head[-1].num_classes - 1)]
-                ]
+                mask_classes = self.mask_head[-1].num_classes - 1
+                segm_results = [[[] for _ in range(mask_classes)]]
             else:
                 _bboxes = []
                 for i in range(num_imgs):
@@ -403,10 +406,12 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
                     if self.with_shared_head:
                         mask_feats = self.shared_head(mask_feats)
                     mask_pred = self.mask_head[i](mask_feats)
+                    # split batch mask prediction back to each image
                     mask_pred = mask_pred.split(num_mask_rois_per_img, 0)
                     aug_masks.append(
                         [m.sigmoid().cpu().numpy() for m in mask_pred])
 
+                # apply mask post-processing to each image individually
                 segm_results = []
                 for i in range(num_imgs):
                     aug_mask = [mask[i] for mask in aug_masks]

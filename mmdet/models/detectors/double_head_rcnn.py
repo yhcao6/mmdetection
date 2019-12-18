@@ -165,16 +165,17 @@ class DoubleHeadRCNN(TwoStageDetector):
             bbox_cls_feats = self.shared_head(bbox_cls_feats)
             bbox_reg_feats = self.shared_head(bbox_reg_feats)
         cls_score, bbox_pred = self.bbox_head(bbox_cls_feats, bbox_reg_feats)
+        img_shapes = tuple(meta['img_shape'] for meta in img_meta)
+        scale_factors = tuple(meta['scale_factor'] for meta in img_meta)
 
-        # split to individual image
+        # split batch bbox prediction back to each image
         num_image = len(proposals)
         num_pp_per_image = tuple(len(p) for p in proposals)
         cls_score = cls_score.split(num_pp_per_image, 0)
         bbox_pred = bbox_pred.split(num_pp_per_image, 0)
         rois = rois.split(num_pp_per_image, 0)
 
-        img_shapes = tuple(meta['img_shape'] for meta in img_meta)
-        scale_factors = tuple(meta['scale_factor'] for meta in img_meta)
+        # apply bbox post-processing to each image individually
         det_bboxes = []
         det_labels = []
         for i in range(num_image):

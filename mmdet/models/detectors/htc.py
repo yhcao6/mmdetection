@@ -334,12 +334,13 @@ class HybridTaskCascade(CascadeRCNN):
             cls_score, bbox_pred = self._bbox_forward_test(
                 i, x, rois, semantic_feat=semantic_feat)
 
+            # split batch bbox prediction back to each image
             num_pp_per_img = tuple(len(p) for p in proposal_list)
             rois = rois.split(num_pp_per_img, 0)
             cls_score = cls_score.split(num_pp_per_img, 0)
             bbox_pred = bbox_pred.split(num_pp_per_img, 0)
-
             ms_scores.append(cls_score)
+
             if i < self.num_stages - 1:
                 bbox_label = [score.argmax(dim=1) for score in cls_score]
                 rois = torch.cat([
@@ -348,10 +349,13 @@ class HybridTaskCascade(CascadeRCNN):
                     for i in range(num_imgs)
                 ])
 
+        # average scores of each image by stages
         cls_score = [
             sum([score[i] for score in ms_scores]) / float(len(ms_scores))
             for i in range(num_imgs)
         ]
+
+        # apply bbox post-processing to each image individually
         det_bboxes = []
         det_labels = []
         for i in range(num_imgs):
@@ -401,10 +405,12 @@ class HybridTaskCascade(CascadeRCNN):
                         mask_pred, last_feat = mask_head(mask_feats, last_feat)
                     else:
                         mask_pred = mask_head(mask_feats)
+                    # split batch mask prediction back to each image
                     mask_pred = mask_pred.split(num_bbox_per_img, 0)
                     aug_masks.append(
                         [mask.sigmoid().cpu().numpy() for mask in mask_pred])
 
+                # apply mask post-processing to each image individually
                 segm_results = []
                 for i in range(num_imgs):
                     aug_mask = [mask[i] for mask in aug_masks]

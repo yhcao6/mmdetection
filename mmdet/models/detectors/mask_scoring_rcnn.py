@@ -168,16 +168,16 @@ class MaskScoringRCNN(TwoStageDetector):
                          det_bboxes,
                          det_labels,
                          rescale=False):
+        # image shapes of images in the batch
+        ori_shapes = tuple(meta['ori_shape'] for meta in img_meta)
+        scale_factors = tuple(meta['scale_factor'] for meta in img_meta)
+
         num_imgs = len(det_bboxes)
-        segm_results = []
-        mask_scores = []
         if num_imgs == 1 and det_bboxes[0].shape[0] == 0:
             num_classes = self.mask_head.num_classes - 1
-            segm_results.append([[] for _ in range(num_classes)])
-            mask_scores.append([[] for _ in range(num_classes)])
+            segm_results = [[[] for _ in range(num_classes)]]
+            mask_scores = [[[] for _ in range(num_classes)]]
         else:
-            ori_shapes = tuple(meta['ori_shape'] for meta in img_meta)
-            scale_factors = tuple(meta['scale_factor'] for meta in img_meta)
             # if det_bboxes is rescaled to the original image size, we need to
             # rescale it back to the testing scale to obtain RoIs.
             _bboxes = [
@@ -196,10 +196,12 @@ class MaskScoringRCNN(TwoStageDetector):
                 mask_feats, mask_pred[range(concat_det_labels.size(0)),
                                       concat_det_labels + 1])
 
+            # split batch mask prediction back to each image
             num_bboxes_per_img = tuple(len(_bbox) for _bbox in _bboxes)
             mask_preds = mask_pred.split(num_bboxes_per_img, 0)
             mask_iou_preds = mask_iou_pred.split(num_bboxes_per_img, 0)
 
+            # apply mask post-processing to each image individually
             segm_results = []
             mask_scores = []
             for i in range(num_imgs):
