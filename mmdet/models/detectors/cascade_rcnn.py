@@ -504,9 +504,9 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
 
         if self.with_mask:
             if det_bboxes.shape[0] == 0:
-                segm_result = [[]
-                               for _ in range(self.mask_head[-1].num_classes -
-                                              1)]
+                segm_result = [[[]
+                                for _ in range(self.mask_head[-1].num_classes -
+                                               1)]]
             else:
                 aug_masks = []
                 aug_img_metas = []
@@ -538,9 +538,9 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
                     ori_shape,
                     scale_factor=1.0,
                     rescale=False)
-            return bbox_result, segm_result
+            return [(bbox_result, segm_result)]
         else:
-            return bbox_result
+            return [bbox_result]
 
     def show_result(self, data, result, **kwargs):
         if self.with_mask:

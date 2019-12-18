@@ -78,7 +78,7 @@ class RPN(BaseDetector, RPNTestMixin):
                 proposals[:, :4] = bbox_mapping(proposals[:, :4], img_shape,
                                                 scale_factor, flip)
         # TODO: remove this restriction
-        return proposal_list[0].cpu().numpy()
+        return [proposal_list[0].cpu().numpy()]
 
     def show_result(self, data, result, dataset=None, top_k=20):
         """Show RPN proposals on the image.
