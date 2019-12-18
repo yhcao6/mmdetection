@@ -216,10 +216,13 @@ def main():
 
     # build the dataloader
     # TODO: support multiple images per gpu (only minor changes are needed)
+    imgs_per_gpu = 1
+    if 'imgs_per_gpu' in cfg.data.test:
+        imgs_per_gpu = cfg.data.test.pop('imgs_per_gpu')
     dataset = build_dataset(cfg.data.test)
     data_loader = build_dataloader(
         dataset,
-        imgs_per_gpu=cfg.data.test.get('imgs_per_gpu', 1),
+        imgs_per_gpu=imgs_per_gpu,
         workers_per_gpu=cfg.data.workers_per_gpu,
         dist=distributed,
         shuffle=False)
