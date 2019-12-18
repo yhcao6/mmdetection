@@ -383,9 +383,10 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
         ms_bbox_result['ensemble'] = bbox_results
 
         if self.with_mask:
-            if num_imgs == 1 and det_bboxes[0].shape[0] == 0:
+            if all(det_bbox.shape[0] == 0 for det_bbox in det_bboxes):
                 mask_classes = self.mask_head[-1].num_classes - 1
-                segm_results = [[[] for _ in range(mask_classes)]]
+                segm_results = [[[] for _ in range(mask_classes)]
+                                for _ in range(num_imgs)]
             else:
                 if rescale and not isinstance(scale_factors[0], float):
                     scale_factors = [

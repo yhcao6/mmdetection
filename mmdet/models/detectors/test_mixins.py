@@ -127,9 +127,9 @@ class MaskTestMixin(object):
         ori_shapes = tuple(meta['ori_shape'] for meta in img_meta)
         scale_factors = tuple(meta['scale_factor'] for meta in img_meta)
         num_imgs = len(det_bboxes)
-        if num_imgs == 1 and det_bboxes[0].shape[0] == 0:
-            segm_results = [[[]
-                             for _ in range(self.mask_head.num_classes - 1)]]
+        if all(det_bbox.shape[0] == 0 for det_bbox in det_bboxes):
+            segm_results = [[[] for _ in range(self.mask_head.num_classes - 1)]
+                            for _ in range(num_imgs)]
         else:
             # if det_bboxes is rescaled to the original image size, we need to
             # rescale it back to the testing scale to obtain RoIs.
