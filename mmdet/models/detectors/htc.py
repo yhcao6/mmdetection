@@ -318,9 +318,9 @@ class HybridTaskCascade(CascadeRCNN):
             semantic_feat = None
 
         num_imgs = len(proposal_list)
-        img_shapes = [meta['img_shape'] for meta in img_meta]
-        ori_shapes = [meta['ori_shape'] for meta in img_meta]
-        scale_factors = [meta['scale_factor'] for meta in img_meta]
+        img_shapes = tuple(meta['img_shape'] for meta in img_meta)
+        ori_shapes = tuple(meta['ori_shape'] for meta in img_meta)
+        scale_factors = tuple(meta['scale_factor'] for meta in img_meta)
 
         # "ms" in variable names means multi-stage
         ms_bbox_result = {}
