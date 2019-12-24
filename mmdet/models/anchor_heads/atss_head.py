@@ -117,9 +117,7 @@ class ATSSHead(AnchorHead):
 
         for reg_layer in self.reg_convs:
             reg_feat = reg_layer(reg_feat)
-        # scale the bbox_pred of different level
-        # float to avoid overflow when enabling FP16
-        bbox_pred = scale(self.atss_reg(reg_feat)).float().exp()
+        bbox_pred = scale(self.atss_reg(reg_feat))
         return cls_score, bbox_pred, centerness
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds', 'centernesses'))
@@ -381,7 +379,12 @@ class ATSSHead(AnchorHead):
                 bbox_pred = bbox_pred[topk_inds, :]
                 scores = scores[topk_inds, :]
                 centerness = centerness[topk_inds]
-            bboxes = delta2bbox(anchors, bbox_pred, max_shape=img_shape)
+            bboxes = delta2bbox(
+                anchors,
+                bbox_pred,
+                means=self.target_means,
+                stds=self.target_stds,
+                max_shape=img_shape)
             mlvl_bboxes.append(bboxes)
             mlvl_scores.append(scores)
             mlvl_centerness.append(centerness)

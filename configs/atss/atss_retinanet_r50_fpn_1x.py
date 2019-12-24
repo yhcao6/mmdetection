@@ -25,7 +25,7 @@ model = dict(
         in_channels=256,
         stacked_convs=4,
         feat_channels=256,
-        octave_base_scale=2,
+        octave_base_scale=8,
         scales_per_octave=1,
         anchor_ratios=[1.0],
         anchor_strides=[8, 16, 32, 64, 128],
@@ -81,7 +81,7 @@ test_pipeline = [
             dict(type='RandomFlip'),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
-            dict(type='DefaultFormatBundle'),
+            dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
         ])
 ]
