@@ -166,9 +166,9 @@ class FCNMaskHead(nn.Module):
             scale_factor = 1.0
 
         for i in range(bboxes.shape[0]):
-            if not isinstance(scale_factor, (float, np.ndarray)):
-                scale_factor = scale_factor.cpu().numpy()
-            bbox = (bboxes[i, :] / scale_factor).astype(np.int32)
+            if not isinstance(scale_factor, (float, torch.Tensor)):
+                scale_factor = bboxes.new_tensor(scale_factor)
+            bbox = (bboxes[i:i+1, :] / scale_factor)
             
             label = labels[i]
             if not self.class_agnostic:
