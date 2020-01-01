@@ -9,6 +9,7 @@ from .roi_align import RoIAlign, roi_align
 from .roi_align_v2 import RoIAlignV2, roi_align_v2
 from .roi_pool import RoIPool, roi_pool
 from .sigmoid_focal_loss import SigmoidFocalLoss, sigmoid_focal_loss
+from .utils import get_compiler_version, get_compiling_cuda_version
 
 __all__ = [
     'nms', 'soft_nms', 'RoIAlign', 'roi_align', 'RoIPool', 'roi_pool',
@@ -16,5 +17,6 @@ __all__ = [
     'ModulatedDeformRoIPoolingPack', 'ModulatedDeformConv',
     'ModulatedDeformConvPack', 'deform_conv', 'modulated_deform_conv',
     'deform_roi_pooling', 'SigmoidFocalLoss', 'sigmoid_focal_loss',
-    'MaskedConv2d', 'ContextBlock', 'roi_align_v2', 'RoIAlignV2'
+    'MaskedConv2d', 'ContextBlock', 'get_compiler_version',
+    'get_compiling_cuda_version', 'roi_align_v2', 'RoIAlignV2'
 ]

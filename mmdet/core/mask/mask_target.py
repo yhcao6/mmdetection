@@ -32,7 +32,7 @@ def mask_target_single(pos_proposals, pos_assigned_gt_inds, gt_masks, cfg):
             gt_masks_th[:, None, :, :],
             rois, mask_size[::-1], 1.0, 0, True).squeeze(1))
         # It is important to set the target > threshold rather than >= (~0.5mAP)
-        mask_targets = (targets > 0.5).float()
+        mask_targets = (targets >= 0.5).float()
     else:
         mask_targets = pos_proposals.new_zeros((0, ) + mask_size)
     return mask_targets

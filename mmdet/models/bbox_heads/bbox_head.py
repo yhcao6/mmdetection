@@ -108,30 +108,34 @@ class BBoxHead(nn.Module):
         losses = dict()
         if cls_score is not None:
             avg_factor = max(torch.sum(label_weights > 0).float().item(), 1.)
-            losses['loss_cls'] = self.loss_cls(
-                cls_score,
-                labels,
-                label_weights,
-                avg_factor=avg_factor,
-                reduction_override=reduction_override)
-            losses['acc'] = accuracy(cls_score, labels)
+            if cls_score.numel() > 0:
+                losses['loss_cls'] = self.loss_cls(
+                    cls_score,
+                    labels,
+                    label_weights,
+                    avg_factor=avg_factor,
+                    reduction_override=reduction_override)
+                losses['acc'] = accuracy(cls_score, labels)
         if bbox_pred is not None:
             bg_class_ind = self.num_classes
             # 0~self.num_classes-1 are FG, self.num_classes is BG
             pos_inds = (labels >= 0) & (labels < bg_class_ind)
             
-            # do not perform bounding box regression for BG anymo.
-            if self.reg_class_agnostic:
-                pos_bbox_pred = bbox_pred.view(bbox_pred.size(0), 4)[pos_inds]
-            else:
-                pos_bbox_pred = bbox_pred.view(bbox_pred.size(0), -1,
-                                               4)[pos_inds, labels[pos_inds]]
-            losses['loss_bbox'] = self.loss_bbox(
-                pos_bbox_pred,
-                bbox_targets[pos_inds],
-                bbox_weights[pos_inds],
-                avg_factor=bbox_targets.size(0),
-                reduction_override=reduction_override)
+            # do not perform bounding box regression for BG anymore.
+            if pos_inds.any():
+                if self.reg_class_agnostic:
+                    pos_bbox_pred = bbox_pred.view(bbox_pred.size(0),
+                                                   4)[pos_inds]
+                else:
+                    pos_bbox_pred = bbox_pred.view(bbox_pred.size(0), -1,
+                                                   4)[pos_inds,
+                                                      labels[pos_inds]]
+                losses['loss_bbox'] = self.loss_bbox(
+                    pos_bbox_pred,
+                    bbox_targets[pos_inds],
+                    bbox_weights[pos_inds],
+                    avg_factor=bbox_targets.size(0),
+                    reduction_override=reduction_override)
         return losses
 
     @force_fp32(apply_to=('cls_score', 'bbox_pred'))
@@ -160,7 +164,9 @@ class BBoxHead(nn.Module):
             if isinstance(scale_factor, float):
                 bboxes /= scale_factor
             else:
-                bboxes /= torch.from_numpy(scale_factor).to(bboxes.device)
+                scale_factor = torch.from_numpy(scale_factor).to(bboxes.device)
+                bboxes = (bboxes.view(bboxes.size(0), -1, 4) /
+                          scale_factor).view(bboxes.size()[0], -1)
 
         if cfg is None:
             return bboxes, scores
