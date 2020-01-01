@@ -102,7 +102,6 @@ def make_cuda_ext(name, module, sources):
 
     return CUDAExtension(
         name='{}.{}'.format(module, name),
-        define_macros=[("WITH_CUDA", None)],
         sources=[os.path.join(*module.split('.'), p) for p in sources],
         define_macros=define_macros,
         extra_compile_args={
