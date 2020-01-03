@@ -68,8 +68,10 @@ train_cfg = dict(
     rpn_proposal=dict(
         nms_across_levels=False,
         nms_pre=2000,
-        nms_post=2000,
-        max_num=2000,
+        # following the setting of detectron,
+        # which improves ~0.2 bbox mAP.
+        nms_post=1000,
+        max_num=1000,
         nms_thr=0.7,
         min_bbox_size=0),
     rcnn=dict(
