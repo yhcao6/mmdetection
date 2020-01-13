@@ -43,7 +43,9 @@ def bbox_target_single(pos_bboxes,
     num_pos = pos_bboxes.size(0)
     num_neg = neg_bboxes.size(0)
     num_samples = num_pos + num_neg
-    labels = pos_bboxes.new_zeros(num_samples, dtype=torch.long)
+    # original implementation uses new_zeros since BG are set to be 0
+    # now use empty & fill because BG cat_id = reg_classes, FG cat_id = [0, reg_classes-1]
+    labels = pos_bboxes.new_empty(num_samples, dtype=torch.long).fill_(reg_classes)
     label_weights = pos_bboxes.new_zeros(num_samples)
     bbox_targets = pos_bboxes.new_zeros(num_samples, 4)
     bbox_weights = pos_bboxes.new_zeros(num_samples, 4)
@@ -66,7 +68,8 @@ def expand_target(bbox_targets, bbox_weights, labels, num_classes):
         (bbox_targets.size(0), 4 * num_classes))
     bbox_weights_expand = bbox_weights.new_zeros(
         (bbox_weights.size(0), 4 * num_classes))
-    for i in torch.nonzero(labels > 0).squeeze(-1):
+    # BG has cat_id=num_classes, FG has cat_id in [0, num_classes-1]
+    for i in torch.nonzero((labels >= 0) & (labels < num_classes)).squeeze(-1):
         start, end = labels[i] * 4, (labels[i] + 1) * 4
         bbox_targets_expand[i, start:end] = bbox_targets[i, :]
         bbox_weights_expand[i, start:end] = bbox_weights[i, :]

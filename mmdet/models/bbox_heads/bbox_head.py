@@ -21,7 +21,7 @@ class BBoxHead(nn.Module):
                  with_reg=True,
                  roi_feat_size=7,
                  in_channels=256,
-                 num_classes=81,
+                 num_classes=80,  # do not count BG anymore
                  target_means=[0., 0., 0., 0.],
                  target_stds=[0.1, 0.1, 0.2, 0.2],
                  reg_class_agnostic=False,
@@ -54,7 +54,8 @@ class BBoxHead(nn.Module):
         else:
             in_channels *= self.roi_feat_area
         if self.with_cls:
-            self.fc_cls = nn.Linear(in_channels, num_classes)
+            # add background class 
+            self.fc_cls = nn.Linear(in_channels, num_classes + 1)
         if self.with_reg:
             out_dim_reg = 4 if reg_class_agnostic else 4 * num_classes
             self.fc_reg = nn.Linear(in_channels, out_dim_reg)
@@ -116,7 +117,11 @@ class BBoxHead(nn.Module):
                     reduction_override=reduction_override)
                 losses['acc'] = accuracy(cls_score, labels)
         if bbox_pred is not None:
-            pos_inds = labels > 0
+            bg_class_ind = self.num_classes
+            # 0~self.num_classes-1 are FG, self.num_classes is BG
+            pos_inds = (labels >= 0) & (labels < bg_class_ind)
+            
+            # do not perform bounding box regression for BG anymore.
             if pos_inds.any():
                 if self.reg_class_agnostic:
                     pos_bbox_pred = bbox_pred.view(bbox_pred.size(0),
@@ -152,8 +157,8 @@ class BBoxHead(nn.Module):
         else:
             bboxes = rois[:, 1:].clone()
             if img_shape is not None:
-                bboxes[:, [0, 2]].clamp_(min=0, max=img_shape[1] - 1)
-                bboxes[:, [1, 3]].clamp_(min=0, max=img_shape[0] - 1)
+                bboxes[:, [0, 2]].clamp_(min=0, max=img_shape[1])
+                bboxes[:, [1, 3]].clamp_(min=0, max=img_shape[0])
 
         if rescale:
             if isinstance(scale_factor, float):
@@ -220,7 +225,7 @@ class BBoxHead(nn.Module):
         Args:
             rois (Tensor): shape (n, 4) or (n, 5)
             label (Tensor): shape (n, )
-            bbox_pred (Tensor): shape (n, 4*(#class+1)) or (n, 4)
+            bbox_pred (Tensor): shape (n, 4*(#class)) or (n, 4)
             img_meta (dict): Image meta info.
 
         Returns:

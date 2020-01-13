@@ -106,7 +106,7 @@ def fast_eval_recall(results,
             if ann.get('ignore', False) or ann['iscrowd']:
                 continue
             x1, y1, w, h = ann['bbox']
-            bboxes.append([x1, y1, x1 + w - 1, y1 + h - 1])
+            bboxes.append([x1, y1, x1 + w, y1 + h])
         bboxes = np.array(bboxes, dtype=np.float32)
         if bboxes.shape[0] == 0:
             bboxes = np.zeros((0, 4))
@@ -123,8 +123,8 @@ def xyxy2xywh(bbox):
     return [
         _bbox[0],
         _bbox[1],
-        _bbox[2] - _bbox[0] + 1,
-        _bbox[3] - _bbox[1] + 1,
+        _bbox[2] - _bbox[0],
+        _bbox[3] - _bbox[1],
     ]
 
 

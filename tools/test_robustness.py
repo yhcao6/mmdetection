@@ -76,21 +76,41 @@ def coco_eval_with_return(result_files,
 def voc_eval_with_return(result_file,
                          dataset,
                          iou_thr=0.5,
-                         logger='print',
+                         print_summary=True,
                          only_ap=True):
     det_results = mmcv.load(result_file)
-    annotations = [dataset.get_ann_info(i) for i in range(len(dataset))]
+    gt_bboxes = []
+    gt_labels = []
+    gt_ignore = []
+    for i in range(len(dataset)):
+        ann = dataset.get_ann_info(i)
+        bboxes = ann['bboxes']
+        labels = ann['labels']
+        if 'bboxes_ignore' in ann:
+            ignore = np.concatenate([
+                np.zeros(bboxes.shape[0], dtype=np.bool),
+                np.ones(ann['bboxes_ignore'].shape[0], dtype=np.bool)
+            ])
+            gt_ignore.append(ignore)
+            bboxes = np.vstack([bboxes, ann['bboxes_ignore']])
+            labels = np.concatenate([labels, ann['labels_ignore']])
+        gt_bboxes.append(bboxes)
+        gt_labels.append(labels)
+    if not gt_ignore:
+        gt_ignore = gt_ignore
     if hasattr(dataset, 'year') and dataset.year == 2007:
         dataset_name = 'voc07'
     else:
         dataset_name = dataset.CLASSES
     mean_ap, eval_results = eval_map(
         det_results,
-        annotations,
+        gt_bboxes,
+        gt_labels,
+        gt_ignore=gt_ignore,
         scale_ranges=None,
         iou_thr=iou_thr,
         dataset=dataset_name,
-        logger=logger)
+        print_summary=print_summary)
 
     if only_ap:
         eval_results = [{
@@ -391,11 +411,10 @@ def main():
                             if eval_type == 'bbox':
                                 test_dataset = mmcv.runner.obj_from_dict(
                                     cfg.data.test, datasets)
-                                logger = 'print' if args.summaries else None
                                 mean_ap, eval_results = \
                                     voc_eval_with_return(
                                         args.out, test_dataset,
-                                        args.iou_thr, logger)
+                                        args.iou_thr, args.summaries)
                                 aggregated_results[corruption][
                                     corruption_severity] = eval_results
                             else:

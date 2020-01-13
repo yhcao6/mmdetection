@@ -13,7 +13,7 @@ def multiclass_nms(multi_bboxes,
 
     Args:
         multi_bboxes (Tensor): shape (n, #class*4) or (n, 4)
-        multi_scores (Tensor): shape (n, #class), where the 0th column
+        multi_scores (Tensor): shape (n, #class+1), where the last column
             contains scores of the background class, but this will be ignored.
         score_thr (float): bbox threshold, bboxes with scores lower than it
             will not be considered.
@@ -27,12 +27,14 @@ def multiclass_nms(multi_bboxes,
         tuple: (bboxes, labels), tensors of shape (k, 5) and (k, 1). Labels
             are 0-based.
     """
-    num_classes = multi_scores.shape[1]
+    # scores has num_classes + 1 (last one is BG)
+    num_classes = multi_scores.shape[1] - 1
     bboxes, labels = [], []
     nms_cfg_ = nms_cfg.copy()
     nms_type = nms_cfg_.pop('type', 'nms')
     nms_op = getattr(nms_wrapper, nms_type)
-    for i in range(1, num_classes):
+    # the fg class id range: [0, num_classes-1]
+    for i in range(0, num_classes):  
         cls_inds = multi_scores[:, i] > score_thr
         if not cls_inds.any():
             continue
@@ -47,7 +49,7 @@ def multiclass_nms(multi_bboxes,
         cls_dets = torch.cat([_bboxes, _scores[:, None]], dim=1)
         cls_dets, _ = nms_op(cls_dets, **nms_cfg_)
         cls_labels = multi_bboxes.new_full((cls_dets.shape[0], ),
-                                           i - 1,
+                                           i,
                                            dtype=torch.long)
         bboxes.append(cls_dets)
         labels.append(cls_labels)
