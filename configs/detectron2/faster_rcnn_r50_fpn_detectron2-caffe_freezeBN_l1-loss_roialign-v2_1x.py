@@ -2,7 +2,7 @@
 norm_cfg = dict(type='BN', requires_grad=False)
 model = dict(
     type='FasterRCNN',
-    pretrained='./pretrain_detectron/ImageNetPretrained/MSRA/resnet50_msra.pth',
+    pretrained='./pretrain_detectron/resnet50_msra.pth',
     backbone=dict(
         type='ResNet',
         depth=50,
@@ -111,15 +111,19 @@ data_root = 'data/coco/'
 # Default values are the mean pixel value from ImageNet: [103.53, 116.28, 123.675]
 # When using pre-trained models in Detectron1 or any MSRA models,
 # std has been absorbed into its conv1 weights, so the std needs to be set 1.
-img_norm_cfg = dict( # The 
-    mean=[103.530, 116.280, 123.675], std=[1.0, 1.0, 1.0], to_rgb=False)
+img_norm_cfg = dict(  # The 
+    mean=[103.530, 116.280, 123.675],
+    std=[1.0, 1.0, 1.0],
+    to_rgb=False)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
-    dict(type='Resize', 
-         img_scale=[(1333, 640),(1333, 672), (1333, 704), 
-                    (1333, 736), (1333, 768), (1333, 800)],
-         multiscale_mode="value", keep_ratio=True),
+    dict(
+        type='Resize',
+        img_scale=[(1333, 640), (1333, 672), (1333, 704), (1333, 736),
+                   (1333, 768), (1333, 800)],
+        multiscale_mode="value",
+        keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0.5),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -172,7 +176,7 @@ lr_config = dict(
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=20,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
