@@ -14,6 +14,7 @@ def anchor_target(anchor_list,
                   gt_bboxes_ignore_list=None,
                   gt_labels_list=None,
                   label_channels=1,
+                  num_classes=80,
                   sampling=True,
                   unmap_outputs=True):
     """Compute regression and classification targets for anchors.
@@ -26,6 +27,7 @@ def anchor_target(anchor_list,
         target_means (Iterable): Mean value of regression targets.
         target_stds (Iterable): Std value of regression targets.
         cfg (dict): RPN train configs.
+        num_classes (int): number of classes
 
     Returns:
         tuple
@@ -59,6 +61,7 @@ def anchor_target(anchor_list,
          target_stds=target_stds,
          cfg=cfg,
          label_channels=label_channels,
+         num_classes=num_classes,
          sampling=sampling,
          unmap_outputs=unmap_outputs)
     # no valid anchors
@@ -101,6 +104,7 @@ def anchor_target_single(flat_anchors,
                          target_stds,
                          cfg,
                          label_channels=1,
+                         num_classes=80,
                          sampling=True,
                          unmap_outputs=True):
     inside_flags = anchor_inside_flags(flat_anchors, valid_flags,
@@ -137,8 +141,11 @@ def anchor_target_single(flat_anchors,
         bbox_targets[pos_inds, :] = pos_bbox_targets
         bbox_weights[pos_inds, :] = 1.0
         if gt_labels is None:
+            # only rpn gives gt_labels as None, this time FG is 1
             labels[pos_inds] = 1
         else:
+            # remind new system set FG cat_id: [0, num_class-1], BG cat_id: num_class
+            labels += num_classes
             labels[pos_inds] = gt_labels[sampling_result.pos_assigned_gt_inds]
         if cfg.pos_weight <= 0:
             label_weights[pos_inds] = 1.0
