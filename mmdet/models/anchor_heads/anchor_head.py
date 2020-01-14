@@ -138,26 +138,6 @@ class AnchorHead(nn.Module):
 
         return anchor_list, valid_flag_list
 
-    def loss_single(self, cls_score, bbox_pred, labels, label_weights,
-                    bbox_targets, bbox_weights, num_total_samples, cfg):
-        # classification loss
-        labels = labels.reshape(-1)
-        label_weights = label_weights.reshape(-1)
-        cls_score = cls_score.permute(0, 2, 3,
-                                      1).reshape(-1, self.cls_out_channels)
-        loss_cls = self.loss_cls(
-            cls_score, labels, label_weights, avg_factor=num_total_samples)
-        # regression loss
-        bbox_targets = bbox_targets.reshape(-1, 4)
-        bbox_weights = bbox_weights.reshape(-1, 4)
-        bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4)
-        loss_bbox = self.loss_bbox(
-            bbox_pred,
-            bbox_targets,
-            bbox_weights,
-            avg_factor=num_total_samples)
-        return loss_cls, loss_bbox
-
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
     def loss(self,
              cls_scores,
@@ -193,16 +173,35 @@ class AnchorHead(nn.Module):
          num_total_pos, num_total_neg) = cls_reg_targets
         num_total_samples = (
             num_total_pos + num_total_neg if self.sampling else num_total_pos)
-        losses_cls, losses_bbox = multi_apply(
-            self.loss_single,
-            cls_scores,
-            bbox_preds,
-            labels_list,
-            label_weights_list,
-            bbox_targets_list,
-            bbox_weights_list,
-            num_total_samples=num_total_samples,
-            cfg=cfg)
+
+        # classification loss
+        labels = torch.cat([labels.reshape(-1) for labels in labels_list])
+        label_weights = torch.cat([
+            label_weights.reshape(-1) for label_weights in label_weights_list
+        ])
+        cls_scores = torch.cat([
+            cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
+            for cls_score in cls_scores
+        ])
+        valid_cls = label_weights > 0
+        losses_cls = self.loss_cls(
+            cls_scores[valid_cls],
+            labels[valid_cls],
+            avg_factor=num_total_samples)
+
+        # regression loss
+        bbox_targets = torch.cat([
+            bbox_targets.reshape(-1, 4) for bbox_targets in bbox_targets_list
+        ])
+        bbox_preds = torch.cat([
+            bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4)
+            for bbox_pred in bbox_preds
+        ])
+        valid_mask = labels > 0
+        losses_bbox = self.loss_bbox(
+            bbox_preds[valid_mask],
+            bbox_targets[valid_mask],
+            avg_factor=num_total_samples)
         return dict(loss_cls=losses_cls, loss_bbox=losses_bbox)
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
