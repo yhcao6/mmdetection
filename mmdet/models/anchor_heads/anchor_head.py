@@ -198,10 +198,13 @@ class AnchorHead(nn.Module):
             for bbox_pred in bbox_preds
         ])
         valid_mask = labels > 0
-        losses_bbox = self.loss_bbox(
-            bbox_preds[valid_mask],
-            bbox_targets[valid_mask],
-            avg_factor=num_total_samples)
+        if valid_mask.any():
+            losses_bbox = self.loss_bbox(
+                bbox_preds[valid_mask],
+                bbox_targets[valid_mask],
+                avg_factor=num_total_samples)
+        else:
+            losses_bbox = bbox_preds.sum() * 0
         return dict(loss_cls=losses_cls, loss_bbox=losses_bbox)
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
