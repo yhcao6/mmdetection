@@ -316,7 +316,7 @@ class Pad(object):
 
     def __call__(self, results):
         self._pad_img(results)
-        if not results['poly_mask']:
+        if not results.get('poly_mask', False):
             self._pad_masks(results)
         self._pad_seg(results)
         return results
