@@ -83,6 +83,15 @@ class LoadAnnotations(object):
         gt_masks = results['ann_info']['masks']
         if self.poly2mask:
             gt_masks = [self._poly2mask(mask, h, w) for mask in gt_masks]
+            results['poly_mask'] = False
+        else:
+            from .masks import PolygonMasks
+            # filter invalid mask < 3 points
+            gt_masks = [[
+                poly for poly in masks if len(poly) % 2 == 0 and len(poly) >= 6
+            ] for masks in gt_masks]
+            gt_masks = PolygonMasks(gt_masks, (h, w))
+            results['poly_mask'] = True
         results['gt_masks'] = gt_masks
         results['mask_fields'].append('gt_masks')
         return results

@@ -142,18 +142,22 @@ class Resize(object):
             if results[key] is None:
                 continue
             if self.keep_ratio:
-                masks = [
-                    mmcv.imrescale(
-                        mask, results['scale'], interpolation='nearest')
-                    for mask in results[key]
-                ]
+                if results['poly_mask']:
+                    results[key].resize(results['img'].shape[:2])
+                else:
+                    masks = [
+                        mmcv.imrescale(
+                            mask, results['scale'], interpolation='nearest')
+                        for mask in results[key]
+                    ]
+                    results[key] = masks
             else:
                 mask_size = (results['img_shape'][1], results['img_shape'][0])
                 masks = [
                     mmcv.imresize(mask, mask_size, interpolation='nearest')
                     for mask in results[key]
                 ]
-            results[key] = masks
+                results[key] = masks
 
     def _resize_seg(self, results):
         for key in results.get('seg_fields', []):
@@ -241,11 +245,15 @@ class RandomFlip(object):
                                               results['img_shape'],
                                               results['flip_direction'])
             # flip masks
-            for key in results.get('mask_fields', []):
-                results[key] = [
-                    mmcv.imflip(mask, direction=results['flip_direction'])
-                    for mask in results[key]
-                ]
+            if results['poly_mask']:
+                for key in results.get('mask_fields', []):
+                    results[key].flip(direction=results['flip_direction'])
+            else:
+                for key in results.get('mask_fields', []):
+                    results[key] = [
+                        mmcv.imflip(mask, direction=results['flip_direction'])
+                        for mask in results[key]
+                    ]
 
             # flip segs
             for key in results.get('seg_fields', []):
@@ -308,7 +316,8 @@ class Pad(object):
 
     def __call__(self, results):
         self._pad_img(results)
-        self._pad_masks(results)
+        if not results['poly_mask']:
+            self._pad_masks(results)
         self._pad_seg(results)
         return results
 
