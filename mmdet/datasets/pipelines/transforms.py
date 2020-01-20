@@ -189,10 +189,10 @@ class Resize(object):
             self._random_scale(results)
         self._resize_img(results)
         self._resize_bboxes(results)
-        if results['poly_mask']:
-            self._resize_poly_masks(results)
-        else:
+        if results.get(['poly_mask'], False):
             self._resize_masks(results)
+        else:
+            self._resize_poly_masks(results)
         self._resize_seg(results)
         return results
 
@@ -293,17 +293,17 @@ class RandomFlip(object):
                                               results['img_shape'],
                                               results['flip_direction'])
             # flip masks
-            if results['poly_mask']:
-                for key in results.get('mask_fields', []):
-                    results[key] = self.poly_mask_flip(
-                        results[key], results['img_shape'],
-                        results['flip_direction'])
-            else:
+            if results.get(['poly_mask'], False):
                 for key in results.get('mask_fields', []):
                     results[key] = [
                         mmcv.imflip(mask, direction=results['flip_direction'])
                         for mask in results[key]
                     ]
+            else:
+                for key in results.get('mask_fields', []):
+                    results[key] = self.poly_mask_flip(
+                        results[key], results['img_shape'],
+                        results['flip_direction'])
 
             # flip segs
             for key in results.get('seg_fields', []):
