@@ -79,18 +79,27 @@ class LoadAnnotations(object):
         return mask
 
     def _load_masks(self, results):
+
+        def process_polygons(polygons):
+            """ Convert polygons to ndarray and filter invalid polygons.
+            Args:
+                polygons (list of list): polygons of one instance.
+            
+            Returns:
+                polygons (list of ndarray).
+            """
+            # transform the polygon to a tensor
+            polygons = [np.array(p) for p in polygons]
+            for polygon in polygons:
+                assert len(polygon) % 2 == 0 and len(polygon) >= 6
+            return polygons
+
         h, w = results['img_info']['height'], results['img_info']['width']
         gt_masks = results['ann_info']['masks']
         if self.poly2mask:
             gt_masks = [self._poly2mask(mask, h, w) for mask in gt_masks]
-            results['poly_mask'] = False
         else:
-            from .masks import PolygonMasks
-            # filter invalid mask < 3 points
-            gt_masks = [[
-                poly for poly in masks if len(poly) % 2 == 0 and len(poly) >= 6
-            ] for masks in gt_masks]
-            gt_masks = PolygonMasks(gt_masks, (h, w))
+            gt_masks = [process_polygons(polygons) for polygons in gt_masks]
             results['poly_mask'] = True
         results['gt_masks'] = gt_masks
         results['mask_fields'].append('gt_masks')
@@ -110,6 +119,7 @@ class LoadAnnotations(object):
                 return None
         if self.with_label:
             results = self._load_labels(results)
+        results['poly_mask'] = False
         if self.with_mask:
             results = self._load_masks(results)
         if self.with_seg:

@@ -106,7 +106,7 @@ class AnchorHead(nn.Module):
             device (torch.device | str): device for returned tensors
 
         Returns:
-            tuple: anchors of each image, valid flags of each image
+            tuple: anchors of each image
         """
         num_imgs = len(img_metas)
         num_levels = len(featmap_sizes)
@@ -119,24 +119,27 @@ class AnchorHead(nn.Module):
                 featmap_sizes[i], self.anchor_strides[i], device=device)
             multi_level_anchors.append(anchors)
         anchor_list = [multi_level_anchors for _ in range(num_imgs)]
+        return anchor_list
 
-        # for each image, we compute valid flags of multi level anchors
-        valid_flag_list = []
-        for img_id, img_meta in enumerate(img_metas):
-            multi_level_flags = []
-            for i in range(num_levels):
-                anchor_stride = self.anchor_strides[i]
-                feat_h, feat_w = featmap_sizes[i]
-                h, w, _ = img_meta['pad_shape']
-                valid_feat_h = min(int(np.ceil(h / anchor_stride)), feat_h)
-                valid_feat_w = min(int(np.ceil(w / anchor_stride)), feat_w)
-                flags = self.anchor_generators[i].valid_flags(
-                    (feat_h, feat_w), (valid_feat_h, valid_feat_w),
-                    device=device)
-                multi_level_flags.append(flags)
-            valid_flag_list.append(multi_level_flags)
-
-        return anchor_list, valid_flag_list
+    def loss_single(self, cls_score, bbox_pred, labels, label_weights,
+                    bbox_targets, bbox_weights, num_total_samples, cfg):
+        # classification loss
+        labels = labels.reshape(-1)
+        label_weights = label_weights.reshape(-1)
+        cls_score = cls_score.permute(0, 2, 3,
+                                      1).reshape(-1, self.cls_out_channels)
+        loss_cls = self.loss_cls(
+            cls_score, labels, label_weights, avg_factor=num_total_samples)
+        # regression loss
+        bbox_targets = bbox_targets.reshape(-1, 4)
+        bbox_weights = bbox_weights.reshape(-1, 4)
+        bbox_pred = bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4)
+        loss_bbox = self.loss_bbox(
+            bbox_pred,
+            bbox_targets,
+            bbox_weights,
+            avg_factor=num_total_samples)
+        return loss_cls, loss_bbox
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))
     def loss(self,
@@ -152,12 +155,10 @@ class AnchorHead(nn.Module):
 
         device = cls_scores[0].device
 
-        anchor_list, valid_flag_list = self.get_anchors(
-            featmap_sizes, img_metas, device=device)
+        anchor_list = self.get_anchors(featmap_sizes, img_metas, device=device)
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
         cls_reg_targets = anchor_target(
             anchor_list,
-            valid_flag_list,
             gt_bboxes,
             img_metas,
             self.target_means,
@@ -174,37 +175,16 @@ class AnchorHead(nn.Module):
         num_total_samples = (
             num_total_pos + num_total_neg if self.sampling else num_total_pos)
 
-        # classification loss
-        labels = torch.cat([labels.reshape(-1) for labels in labels_list])
-        label_weights = torch.cat([
-            label_weights.reshape(-1) for label_weights in label_weights_list
-        ])
-        cls_scores = torch.cat([
-            cls_score.permute(0, 2, 3, 1).reshape(-1, self.cls_out_channels)
-            for cls_score in cls_scores
-        ])
-        valid_cls = label_weights > 0
-        losses_cls = self.loss_cls(
-            cls_scores[valid_cls],
-            labels[valid_cls],
-            avg_factor=num_total_samples)
-
-        # regression loss
-        bbox_targets = torch.cat([
-            bbox_targets.reshape(-1, 4) for bbox_targets in bbox_targets_list
-        ])
-        bbox_preds = torch.cat([
-            bbox_pred.permute(0, 2, 3, 1).reshape(-1, 4)
-            for bbox_pred in bbox_preds
-        ])
-        valid_mask = labels > 0
-        if valid_mask.any():
-            losses_bbox = self.loss_bbox(
-                bbox_preds[valid_mask],
-                bbox_targets[valid_mask],
-                avg_factor=num_total_samples)
-        else:
-            losses_bbox = bbox_preds.sum() * 0
+        losses_cls, losses_bbox = multi_apply(
+            self.loss_single,
+            cls_scores,
+            bbox_preds,
+            labels_list,
+            label_weights_list,
+            bbox_targets_list,
+            bbox_weights_list,
+            num_total_samples=num_total_samples,
+            cfg=cfg)
         return dict(loss_cls=losses_cls, loss_bbox=losses_bbox)
 
     @force_fp32(apply_to=('cls_scores', 'bbox_preds'))

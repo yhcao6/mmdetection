@@ -5,7 +5,6 @@ from ..utils import multi_apply
 
 
 def anchor_target(anchor_list,
-                  valid_flag_list,
                   gt_bboxes_list,
                   img_metas,
                   target_means,
@@ -21,7 +20,6 @@ def anchor_target(anchor_list,
 
     Args:
         anchor_list (list[list]): Multi level anchors of each image.
-        valid_flag_list (list[list]): Multi level valid flags of each image.
         gt_bboxes_list (list[Tensor]): Ground truth bboxes of each image.
         img_metas (list[dict]): Meta info of each image.
         target_means (Iterable): Mean value of regression targets.
@@ -33,15 +31,13 @@ def anchor_target(anchor_list,
         tuple
     """
     num_imgs = len(img_metas)
-    assert len(anchor_list) == len(valid_flag_list) == num_imgs
+    assert len(anchor_list) == num_imgs
 
     # anchor number of multi levels
     num_level_anchors = [anchors.size(0) for anchors in anchor_list[0]]
     # concat all level anchors and flags to a single tensor
     for i in range(num_imgs):
-        assert len(anchor_list[i]) == len(valid_flag_list[i])
         anchor_list[i] = torch.cat(anchor_list[i])
-        valid_flag_list[i] = torch.cat(valid_flag_list[i])
 
     # compute targets for each image
     if gt_bboxes_ignore_list is None:
@@ -52,7 +48,6 @@ def anchor_target(anchor_list,
      pos_inds_list, neg_inds_list) = multi_apply(
          anchor_target_single,
          anchor_list,
-         valid_flag_list,
          gt_bboxes_list,
          gt_bboxes_ignore_list,
          gt_labels_list,
@@ -95,7 +90,6 @@ def images_to_levels(target, num_level_anchors):
 
 
 def anchor_target_single(flat_anchors,
-                         valid_flags,
                          gt_bboxes,
                          gt_bboxes_ignore,
                          gt_labels,
@@ -107,13 +101,16 @@ def anchor_target_single(flat_anchors,
                          num_classes=80,
                          sampling=True,
                          unmap_outputs=True):
-    inside_flags = anchor_inside_flags(flat_anchors, valid_flags,
-                                       img_meta['img_shape'][:2],
-                                       cfg.allowed_border)
-    if not inside_flags.any():
-        return (None, ) * 6
-    # assign gt and sample anchors
-    anchors = flat_anchors[inside_flags, :]
+    if cfg.allowed_border >= 0:
+        inside_flags = anchor_inside_flags(flat_anchors,
+                                           img_meta['img_shape'][:2],
+                                           cfg.allowed_border)
+        if not inside_flags.any():
+            return (None, ) * 6
+        # assign gt and sample anchors
+        anchors = flat_anchors[inside_flags, :]
+    else:
+        anchors = flat_anchors
 
     if sampling:
         assign_result, sampling_result = assign_and_sample(
@@ -155,7 +152,7 @@ def anchor_target_single(flat_anchors,
         label_weights[neg_inds] = 1.0
 
     # map up to original set of anchors
-    if unmap_outputs:
+    if cfg.allowed_border >= 0 and unmap_outputs:
         num_total_anchors = flat_anchors.size(0)
         labels = unmap(labels, num_total_anchors, inside_flags)
         label_weights = unmap(label_weights, num_total_anchors, inside_flags)
@@ -166,19 +163,13 @@ def anchor_target_single(flat_anchors,
             neg_inds)
 
 
-def anchor_inside_flags(flat_anchors,
-                        valid_flags,
-                        img_shape,
-                        allowed_border=0):
+def anchor_inside_flags(flat_anchors, img_shape, allowed_border=0):
     img_h, img_w = img_shape[:2]
-    if allowed_border >= 0:
-        inside_flags = valid_flags & \
-            (flat_anchors[:, 0] >= -allowed_border).type(torch.uint8) & \
-            (flat_anchors[:, 1] >= -allowed_border).type(torch.uint8) & \
-            (flat_anchors[:, 2] < img_w + allowed_border).type(torch.uint8) & \
-            (flat_anchors[:, 3] < img_h + allowed_border).type(torch.uint8)
-    else:
-        inside_flags = valid_flags
+    inside_flags = \
+        (flat_anchors[:, 0] >= -allowed_border).type(torch.uint8) & \
+        (flat_anchors[:, 1] >= -allowed_border).type(torch.uint8) & \
+        (flat_anchors[:, 2] < img_w + allowed_border).type(torch.uint8) & \
+        (flat_anchors[:, 3] < img_h + allowed_border).type(torch.uint8)
     return inside_flags
 
 

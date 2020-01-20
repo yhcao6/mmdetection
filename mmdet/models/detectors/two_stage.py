@@ -164,19 +164,7 @@ class TwoStageDetector(BaseDetector, RPNTestMixin, BBoxTestMixin,
         Returns:
             dict[str, Tensor]: a dictionary of loss components
         """
-        debug = False
-        import time
-        if debug:
-            torch.cuda.synchronize()
-            t = time.perf_counter()
-
         x = self.extract_feat(img)
-
-        if debug:
-            torch.cuda.synchronize()
-            print('backbone: {}'.format(time.perf_counter() - t))
-            t = time.perf_counter()
-
         losses = dict()
 
         # RPN forward and loss
@@ -194,11 +182,6 @@ class TwoStageDetector(BaseDetector, RPNTestMixin, BBoxTestMixin,
             proposal_list = self.rpn_head.get_bboxes(*proposal_inputs)
         else:
             proposal_list = proposals
-
-        if debug:
-            torch.cuda.synchronize()
-            print('rpn: {}'.format(time.perf_counter() - t))
-            t = time.perf_counter()
 
         # assign gts and sample proposals
         if self.with_bbox or self.with_mask:
@@ -239,13 +222,6 @@ class TwoStageDetector(BaseDetector, RPNTestMixin, BBoxTestMixin,
                                             *bbox_targets)
             losses.update(loss_bbox)
 
-        if debug:
-            torch.cuda.synchronize()
-            print('bbox head: {}'.format(time.perf_counter() - t))
-            t = time.perf_counter()
-            if not self.with_mask:
-                print()
-
         # mask head forward and loss
         if self.with_mask:
             if not self.share_roi_extractor:
@@ -282,10 +258,6 @@ class TwoStageDetector(BaseDetector, RPNTestMixin, BBoxTestMixin,
                                                 pos_labels)
                 losses.update(loss_mask)
 
-            if debug:
-                torch.cuda.synchronize()
-                print('mask head: {}'.format(time.perf_counter() - t))
-                print()
         return losses
 
     async def async_simple_test(self,

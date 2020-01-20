@@ -4,6 +4,7 @@ import mmcv
 import numpy as np
 import torch
 from mmcv.parallel import DataContainer as DC
+import pycocotools.mask as maskUtils
 
 from ..registry import PIPELINES
 
@@ -93,6 +94,22 @@ class ToDataContainer(object):
 
     def __repr__(self):
         return self.__class__.__name__ + '(fields={})'.format(self.fields)
+
+
+def _poly2mask(mask_ann, img_h, img_w):
+    if isinstance(mask_ann, list):
+        # polygon -- a single object might consist of multiple parts
+        # we merge all parts into one mask rle code
+        rles = maskUtils.frPyObjects(mask_ann, img_h, img_w)
+        rle = maskUtils.merge(rles)
+    elif isinstance(mask_ann['counts'], list):
+        # uncompressed RLE
+        rle = maskUtils.frPyObjects(mask_ann, img_h, img_w)
+    else:
+        # rle
+        rle = mask_ann
+    mask = maskUtils.decode(rle)
+    return mask
 
 
 @PIPELINES.register_module
