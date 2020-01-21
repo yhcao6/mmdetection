@@ -2,7 +2,7 @@
 norm_cfg = dict(type='BN', requires_grad=False)
 model = dict(
     type='RPN',
-    pretrained='./pretrain_detectron/resnet50_msra.pth',
+    pretrained='./pretrain_detectron/ImageNetPretrained/MSRA/resnet50_msra.pth',
     backbone=dict(
         type='ResNet',
         depth=50,
@@ -44,15 +44,15 @@ train_cfg = dict(
             pos_fraction=0.5,
             neg_pos_ub=-1,
             add_gt_as_proposals=False),
-        allowed_border=0,
+        allowed_border=-1,
         pos_weight=-1,
         debug=False))
 test_cfg = dict(
     rpn=dict(
         nms_across_levels=False,
         nms_pre=2000,
-        nms_post=2000,
-        max_num=2000,
+        nms_post=1000,
+        max_num=1000,
         nms_thr=0.7,
         min_bbox_size=0))
 # dataset settings

@@ -23,7 +23,7 @@ class MaskIoUHead(nn.Module):
                  in_channels=256,
                  conv_out_channels=256,
                  fc_out_channels=1024,
-                 num_classes=81,
+                 num_classes=80,  # do not count BG anymore
                  loss_iou=dict(type='MSELoss', loss_weight=0.5)):
         super(MaskIoUHead, self).__init__()
         self.in_channels = in_channels
@@ -186,5 +186,5 @@ class MaskIoUHead(nn.Module):
         mask_scores = mask_scores.cpu().numpy()
         det_labels = det_labels.cpu().numpy()
         return [
-            mask_scores[det_labels == i] for i in range(self.num_classes - 1)
+            mask_scores[det_labels == i] for i in range(self.num_classes)
         ]

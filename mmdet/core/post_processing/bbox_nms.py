@@ -34,7 +34,7 @@ def multiclass_nms(multi_bboxes,
     nms_type = nms_cfg_.pop('type', 'nms')
     nms_op = getattr(nms_wrapper, nms_type)
     # the fg class id range: [0, num_classes-1]
-    for i in range(0, num_classes):  
+    for i in range(0, num_classes):
         cls_inds = multi_scores[:, i] > score_thr
         if not cls_inds.any():
             continue

@@ -141,7 +141,8 @@ def anchor_target_single(flat_anchors,
             # only rpn gives gt_labels as None, this time FG is 1
             labels[pos_inds] = 1
         else:
-            # remind new system set FG cat_id: [0, num_class-1], BG cat_id: num_class
+            # remind new system set FG cat_id: [0, num_class-1], BG cat_id:
+            # num_class
             labels += num_classes
             labels[pos_inds] = gt_labels[sampling_result.pos_assigned_gt_inds]
         if cfg.pos_weight <= 0:

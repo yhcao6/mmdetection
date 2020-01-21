@@ -5,7 +5,7 @@ import pycocotools.mask as mask_utils
 import torch
 from torch.nn.modules.utils import _pair
 
-from mmdet.ops import roi_align_v2
+from mmdet.ops import roi_align
 
 
 def mask_target(pos_proposals_list, pos_assigned_gt_inds_list, gt_masks_list,
@@ -79,9 +79,10 @@ def mask_target_single_bitmaps(pos_proposals, pos_assigned_gt_inds, gt_masks,
                 0, pos_assigned_gt_inds).to(dtype=rois.dtype))
         # Use RoIAlign could apparently accelerate the training (~0.1s/iter)
         targets = (
-            roi_align_v2(gt_masks_th[:, None, :, :], rois, mask_size[::-1],
-                         1.0, 0, True).squeeze(1))
-        # It is important to set the target > threshold rather than >= (~0.5mAP)
+            roi_align(gt_masks_th[:, None, :, :], rois, mask_size[::-1], 1.0,
+                      0, True).squeeze(1))
+        # It is important to set the target > threshold rather
+        # than >= (~0.5mAP)
         mask_targets = (targets >= 0.5).float()
     else:
         mask_targets = pos_proposals.new_zeros((0, ) + mask_size)

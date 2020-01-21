@@ -118,7 +118,7 @@ class GuidedAnchorHead(AnchorHead):
         loss_shape=dict(type='BoundedIoULoss', beta=0.2, loss_weight=1.0),
         loss_cls=dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
-        loss_bbox=dict(type='SmoothL1Loss', beta=1.0,
+        loss_bbox=dict(type='SmoothL1Loss', beta=0.0,
                        loss_weight=1.0)):  # yapf: disable
         super(AnchorHead, self).__init__()
         self.in_channels = in_channels
@@ -155,9 +155,9 @@ class GuidedAnchorHead(AnchorHead):
         self.cls_focal_loss = loss_cls['type'] in ['FocalLoss']
         self.loc_focal_loss = loss_loc['type'] in ['FocalLoss']
         if self.use_sigmoid_cls:
-            self.cls_out_channels = self.num_classes - 1
-        else:
             self.cls_out_channels = self.num_classes
+        else:
+            self.cls_out_channels = self.num_classes + 1
 
         # build losses
         self.loss_loc = build_loss(loss_loc)
@@ -244,21 +244,13 @@ class GuidedAnchorHead(AnchorHead):
             multi_level_approxs = approxs_list[img_id]
             for i in range(num_levels):
                 approxs = multi_level_approxs[i]
-                anchor_stride = self.anchor_strides[i]
-                feat_h, feat_w = featmap_sizes[i]
                 h, w, _ = img_meta['pad_shape']
-                valid_feat_h = min(int(np.ceil(h / anchor_stride)), feat_h)
-                valid_feat_w = min(int(np.ceil(w / anchor_stride)), feat_w)
-                flags = self.approx_generators[i].valid_flags(
-                    (feat_h, feat_w), (valid_feat_h, valid_feat_w),
-                    device=device)
                 inside_flags_list = []
                 for i in range(self.approxs_per_octave):
-                    split_valid_flags = flags[i::self.approxs_per_octave]
                     split_approxs = approxs[i::self.approxs_per_octave, :]
                     inside_flags = anchor_inside_flags(
-                        split_approxs, split_valid_flags,
-                        img_meta['img_shape'][:2], cfg.allowed_border)
+                        split_approxs, img_meta['img_shape'][:2],
+                        cfg.allowed_border)
                     inside_flags_list.append(inside_flags)
                 # inside_flag for a position is true if any anchor in this
                 # position is true
@@ -453,7 +445,6 @@ class GuidedAnchorHead(AnchorHead):
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
         cls_reg_targets = anchor_target(
             guided_anchors_list,
-            inside_flag_list,
             gt_bboxes,
             img_metas,
             self.target_means,
@@ -598,7 +589,9 @@ class GuidedAnchorHead(AnchorHead):
                 if self.use_sigmoid_cls:
                     max_scores, _ = scores.max(dim=1)
                 else:
-                    max_scores, _ = scores[:, 1:].max(dim=1)
+                    # remind new system set FG cat_id: [0, num_class-1]
+                    # BG cat_id: num_class
+                    max_scores, _ = scores[:, :-1].max(dim=1)
                 _, topk_inds = max_scores.topk(nms_pre)
                 anchors = anchors[topk_inds, :]
                 bbox_pred = bbox_pred[topk_inds, :]
@@ -613,7 +606,7 @@ class GuidedAnchorHead(AnchorHead):
         mlvl_scores = torch.cat(mlvl_scores)
         if self.use_sigmoid_cls:
             padding = mlvl_scores.new_zeros(mlvl_scores.shape[0], 1)
-            mlvl_scores = torch.cat([padding, mlvl_scores], dim=1)
+            mlvl_scores = torch.cat([mlvl_scores, padding], dim=1)
         # multi class NMS
         det_bboxes, det_labels = multiclass_nms(mlvl_bboxes, mlvl_scores,
                                                 cfg.score_thr, cfg.nms,

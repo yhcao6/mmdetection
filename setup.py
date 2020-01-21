@@ -182,10 +182,6 @@ if __name__ == '__main__':
                 module='mmdet.ops.nms',
                 sources=['src/nms_cuda.cpp', 'src/nms_kernel.cu']),
             make_cuda_ext(
-                name='roi_align_cuda',
-                module='mmdet.ops.roi_align',
-                sources=['src/roi_align_cuda.cpp', 'src/roi_align_kernel.cu']),
-            make_cuda_ext(
                 name='roi_pool_cuda',
                 module='mmdet.ops.roi_pool',
                 sources=['src/roi_pool_cuda.cpp', 'src/roi_pool_kernel.cu']),
@@ -217,11 +213,11 @@ if __name__ == '__main__':
                     'src/masked_conv2d_cuda.cpp', 'src/masked_conv2d_kernel.cu'
                 ]),
             make_cuda_ext(
-                name='roialign_v2',
-                module='mmdet.ops.roi_align_v2',
+                name='roi_align_cuda',
+                module='mmdet.ops.roi_align',
                 sources=[
-#                     'src/roi_align_v2.cpp',
-                    'src/ROIAlign.cpp', 'src/ROIAlign_cpu.cpp', 'src/ROIAlign_cuda.cu'
+                    'src/ROIAlign.cpp', 'src/ROIAlign_cpu.cpp',
+                    'src/ROIAlign_cuda.cu'
                 ]),
         ],
         cmdclass={'build_ext': BuildExtension},

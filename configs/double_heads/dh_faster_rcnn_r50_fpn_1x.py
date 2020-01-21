@@ -1,6 +1,6 @@
 # model settings
 model = dict(
-    type='DoubleHeadRCNN',
+    type='FasterRCNN',
     pretrained='modelzoo://resnet50',
     backbone=dict(
         type='ResNet',
@@ -25,28 +25,30 @@ model = dict(
         target_stds=[1.0, 1.0, 1.0, 1.0],
         loss_cls=dict(
             type='CrossEntropyLoss', use_sigmoid=True, loss_weight=1.0),
-        loss_bbox=dict(type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0)),
-    bbox_roi_extractor=dict(
-        type='SingleRoIExtractor',
-        roi_layer=dict(type='RoIAlign', out_size=7, sample_num=2),
-        out_channels=256,
-        featmap_strides=[4, 8, 16, 32]),
-    reg_roi_scale_factor=1.3,
-    bbox_head=dict(
-        type='DoubleConvFCBBoxHead',
-        num_convs=4,
-        num_fcs=2,
-        in_channels=256,
-        conv_out_channels=1024,
-        fc_out_channels=1024,
-        roi_feat_size=7,
-        num_classes=81,
-        target_means=[0., 0., 0., 0.],
-        target_stds=[0.1, 0.1, 0.2, 0.2],
-        reg_class_agnostic=False,
-        loss_cls=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=2.0),
-        loss_bbox=dict(type='SmoothL1Loss', beta=1.0, loss_weight=2.0)))
+        loss_bbox=dict(type='SmoothL1Loss', beta=0.0, loss_weight=1.0)),
+    roi_head=dict(
+        type='DoubleHeadRoIHead',
+        reg_roi_scale_factor=1.3,
+        bbox_roi_extractor=dict(
+            type='SingleRoIExtractor',
+            roi_layer=dict(type='RoIAlign', out_size=7),
+            out_channels=256,
+            featmap_strides=[4, 8, 16, 32]),
+        bbox_head=dict(
+            type='DoubleConvFCBBoxHead',
+            num_convs=4,
+            num_fcs=2,
+            in_channels=256,
+            conv_out_channels=1024,
+            fc_out_channels=1024,
+            roi_feat_size=7,
+            num_classes=80,  # do not count BG anymore
+            target_means=[0., 0., 0., 0.],
+            target_stds=[0.1, 0.1, 0.2, 0.2],
+            reg_class_agnostic=False,
+            loss_cls=dict(
+                type='CrossEntropyLoss', use_sigmoid=False, loss_weight=2.0),
+            loss_bbox=dict(type='SmoothL1Loss', beta=0.0, loss_weight=2.0))))
 # model training and testing settings
 train_cfg = dict(
     rpn=dict(
@@ -62,14 +64,14 @@ train_cfg = dict(
             pos_fraction=0.5,
             neg_pos_ub=-1,
             add_gt_as_proposals=False),
-        allowed_border=0,
+        allowed_border=-1,
         pos_weight=-1,
         debug=False),
     rpn_proposal=dict(
         nms_across_levels=False,
         nms_pre=2000,
-        nms_post=2000,
-        max_num=2000,
+        nms_post=1000,
+        max_num=1000,
         nms_thr=0.7,
         min_bbox_size=0),
     rcnn=dict(

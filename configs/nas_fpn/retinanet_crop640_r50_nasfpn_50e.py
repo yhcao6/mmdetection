@@ -24,7 +24,7 @@ model = dict(
         norm_cfg=norm_cfg),
     bbox_head=dict(
         type='RetinaSepBNHead',
-        num_classes=81,
+        num_classes=80,  # do not count BG anymore
         num_ins=5,
         in_channels=256,
         stacked_convs=4,
@@ -42,7 +42,7 @@ model = dict(
             gamma=2.0,
             alpha=0.25,
             loss_weight=1.0),
-        loss_bbox=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0)))
+        loss_bbox=dict(type='SmoothL1Loss', beta=0.0, loss_weight=1.0)))
 # training and testing settings
 train_cfg = dict(
     assigner=dict(

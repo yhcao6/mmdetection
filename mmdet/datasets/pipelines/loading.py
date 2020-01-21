@@ -84,7 +84,7 @@ class LoadAnnotations(object):
             """ Convert polygons to ndarray and filter invalid polygons.
             Args:
                 polygons (list of list): polygons of one instance.
-            
+
             Returns:
                 polygons (list of ndarray).
             """

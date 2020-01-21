@@ -21,15 +21,18 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
     @property
     def with_shared_head(self):
-        return hasattr(self, 'shared_head') and self.shared_head is not None
+        return hasattr(self.roi_head,
+                       'shared_head') and self.roi_head.shared_head is not None
 
     @property
     def with_bbox(self):
-        return hasattr(self, 'bbox_head') and self.bbox_head is not None
+        return hasattr(self.roi_head,
+                       'bbox_head') and self.roi_head.bbox_head is not None
 
     @property
     def with_mask(self):
-        return hasattr(self, 'mask_head') and self.mask_head is not None
+        return hasattr(self.roi_head,
+                       'mask_head') and self.roi_head.mask_head is not None
 
     @abstractmethod
     def extract_feat(self, imgs):
@@ -129,8 +132,8 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
         """
         Calls either forward_train or forward_test depending on whether
         return_loss=True. Note this setting will change the expected inputs.
-        When `return_loss=False`, img and img_meta are single-nested (i.e.
-        Tensor and List[dict]), and when `resturn_loss=True`, img and img_meta
+        When `return_loss=True`, img and img_meta are single-nested (i.e.
+        Tensor and List[dict]), and when `resturn_loss=False`, img and img_meta
         should be double nested (i.e.  List[Tensor], List[List[dict]]), with
         the outer list indicating test time augmentations.
         """

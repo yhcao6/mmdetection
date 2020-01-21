@@ -14,26 +14,27 @@ from ..utils import ConvModule
 BYTES_PER_FLOAT = 4
 # TODO: This memory limit may be too much or too little. It would be better to
 # determine it based on available resources.
-GPU_MEM_LIMIT = 1024 ** 3  # 1 GB memory limit
+GPU_MEM_LIMIT = 1024**3  # 1 GB memory limit
 
 
 @HEADS.register_module
 class FCNMaskHead(nn.Module):
 
-    def __init__(self,
-                 num_convs=4,
-                 roi_feat_size=14,
-                 in_channels=256,
-                 conv_kernel_size=3,
-                 conv_out_channels=256,
-                 upsample_method='deconv',
-                 upsample_ratio=2,
-                 num_classes=81,
-                 class_agnostic=False,
-                 conv_cfg=None,
-                 norm_cfg=None,
-                 loss_mask=dict(
-                     type='CrossEntropyLoss', use_mask=True, loss_weight=1.0)):
+    def __init__(
+        self,
+        num_convs=4,
+        roi_feat_size=14,
+        in_channels=256,
+        conv_kernel_size=3,
+        conv_out_channels=256,
+        upsample_method='deconv',
+        upsample_ratio=2,
+        num_classes=80,  # do not count BG anymore
+        class_agnostic=False,
+        conv_cfg=None,
+        norm_cfg=None,
+        loss_mask=dict(
+            type='CrossEntropyLoss', use_mask=True, loss_weight=1.0)):
         super(FCNMaskHead, self).__init__()
         if upsample_method not in [None, 'deconv', 'nearest', 'bilinear']:
             raise ValueError(
@@ -154,7 +155,8 @@ class FCNMaskHead(nn.Module):
         # numpy array
         # mask_pred = mask_pred.astype(np.float32)
 
-        cls_segms = [[] for _ in range(self.num_classes)]  # BG is not included in num_classes 
+        cls_segms = [[] for _ in range(self.num_classes)
+                     ]  # BG is not included in num_classes
         bboxes = det_bboxes[:, :4]
         labels = det_labels
 
@@ -168,25 +170,29 @@ class FCNMaskHead(nn.Module):
         for i in range(bboxes.shape[0]):
             if not isinstance(scale_factor, (float, torch.Tensor)):
                 scale_factor = bboxes.new_tensor(scale_factor)
-            bbox = (bboxes[i:i+1, :] / scale_factor)
-            
+            bbox = (bboxes[i:i + 1, :] / scale_factor)
+
             label = labels[i]
             if not self.class_agnostic:
-                mask_pred_ = mask_pred[i:i+1, label:label+1, :, :]
+                mask_pred_ = mask_pred[i:i + 1, label:label + 1, :, :]
             else:
-                mask_pred_ = mask_pred[i:i+1, 0:1, :, :]
-            #im_mask = np.zeros((img_h, img_w), dtype=np.uint8)
+                mask_pred_ = mask_pred[i:i + 1, 0:1, :, :]
+            # im_mask = np.zeros((img_h, img_w), dtype=np.uint8)
             im_mask = torch.zeros((img_h, img_w), dtype=torch.uint8)
             # bbox_mask = mmcv.imresize(mask_pred_, (w, h))
-            #bbox_mask = (bbox_mask > rcnn_test_cfg.mask_thr_binary).astype(
+            # bbox_mask = (bbox_mask > rcnn_test_cfg.mask_thr_binary).astype(
             #    np.uint8)
-            #im_mask[bbox[1]:bbox[1] + h, bbox[0]:bbox[0] + w] = bbox_mask
+            # im_mask[bbox[1]:bbox[1] + h, bbox[0]:bbox[0] + w] = bbox_mask
             masks_chunk, spatial_inds = _do_paste_mask(
-                    mask_pred_, bbox, img_h, img_w, skip_empty=device.type == "cpu"
-            )
-            masks_chunk = (masks_chunk > rcnn_test_cfg.mask_thr_binary).to(dtype=torch.bool)
+                mask_pred_,
+                bbox,
+                img_h,
+                img_w,
+                skip_empty=device.type == "cpu")
+            masks_chunk = (masks_chunk > rcnn_test_cfg.mask_thr_binary).to(
+                dtype=torch.bool)
             im_mask[spatial_inds] = masks_chunk
-            
+
             rle = mask_util.encode(
                 np.array(im_mask[:, :, None].cpu().numpy(), order='F'))[0]
             cls_segms[label].append(rle)
@@ -214,11 +220,13 @@ def _do_paste_mask(masks, boxes, img_h, img_w, skip_empty=True):
     # this has more operations but is faster on COCO-scale dataset.
     device = masks.device
     if skip_empty:
-        x0_int, y0_int = torch.clamp(boxes.min(dim=0).values.floor()[:2] - 1, min=0).to(
-            dtype=torch.int32
-        )
-        x1_int = torch.clamp(boxes[:, 2].max().ceil() + 1, max=img_w).to(dtype=torch.int32)
-        y1_int = torch.clamp(boxes[:, 3].max().ceil() + 1, max=img_h).to(dtype=torch.int32)
+        x0_int, y0_int = torch.clamp(
+            boxes.min(dim=0).values.floor()[:2] - 1,
+            min=0).to(dtype=torch.int32)
+        x1_int = torch.clamp(
+            boxes[:, 2].max().ceil() + 1, max=img_w).to(dtype=torch.int32)
+        y1_int = torch.clamp(
+            boxes[:, 3].max().ceil() + 1, max=img_h).to(dtype=torch.int32)
     else:
         x0_int, y0_int = 0, 0
         x1_int, y1_int = img_w, img_h
@@ -226,8 +234,10 @@ def _do_paste_mask(masks, boxes, img_h, img_w, skip_empty=True):
 
     N = masks.shape[0]
 
-    img_y = torch.arange(y0_int, y1_int, device=device, dtype=torch.float32) + 0.5
-    img_x = torch.arange(x0_int, x1_int, device=device, dtype=torch.float32) + 0.5
+    img_y = torch.arange(
+        y0_int, y1_int, device=device, dtype=torch.float32) + 0.5
+    img_x = torch.arange(
+        x0_int, x1_int, device=device, dtype=torch.float32) + 0.5
     img_y = (img_y - y0) / (y1 - y0) * 2 - 1
     img_x = (img_x - x0) / (x1 - x0) * 2 - 1
     # img_x, img_y have shapes (N, w), (N, h)
@@ -236,7 +246,8 @@ def _do_paste_mask(masks, boxes, img_h, img_w, skip_empty=True):
     gy = img_y[:, :, None].expand(N, img_y.size(1), img_x.size(1))
     grid = torch.stack([gx, gy], dim=3)
 
-    img_masks = F.grid_sample(masks.to(dtype=torch.float32), grid, align_corners=False)
+    img_masks = F.grid_sample(
+        masks.to(dtype=torch.float32), grid, align_corners=False)
 
     if skip_empty:
         return img_masks[:, 0], (slice(y0_int, y1_int), slice(x0_int, x1_int))

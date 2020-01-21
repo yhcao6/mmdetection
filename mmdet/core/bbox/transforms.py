@@ -91,8 +91,6 @@ def delta2bbox(rois,
     # Compute width/height of each roi
     pw = (rois[:, 2] - rois[:, 0]).unsqueeze(1).expand_as(dw)
     ph = (rois[:, 3] - rois[:, 1]).unsqueeze(1).expand_as(dh)
-#     pw = (rois[:, 2] - rois[:, 0] + 1.0).unsqueeze(1).expand_as(dw)
-#     ph = (rois[:, 3] - rois[:, 1] + 1.0).unsqueeze(1).expand_as(dh)
     # Use exp(network energy) to enlarge/shrink each roi
     gw = pw * dw.exp()
     gh = ph * dh.exp()
@@ -100,10 +98,6 @@ def delta2bbox(rois,
     gx = torch.addcmul(px, 1, pw, dx)  # gx = px + pw * dx
     gy = torch.addcmul(py, 1, ph, dy)  # gy = py + ph * dy
     # Convert center-xy/width/height to top-left, bottom-right
-#     x1 = gx - gw * 0.5 + 0.5
-#     y1 = gy - gh * 0.5 + 0.5
-#     x2 = gx + gw * 0.5 - 0.5
-#     y2 = gy + gh * 0.5 - 0.5
     x1 = gx - gw * 0.5
     y1 = gy - gh * 0.5
     x2 = gx + gw * 0.5

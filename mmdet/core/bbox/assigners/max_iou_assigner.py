@@ -29,7 +29,7 @@ class MaxIoUAssigner(BaseAssigner):
         ignore_wrt_candidates (bool): Whether to compute the iof between
             `bboxes` and `gt_bboxes_ignore`, or the contrary.
         match_low_quality (bool): Whether to all low quality matches,
-            This is usually allowed for RPN and RetinaNet, but not allowed 
+            This is usually allowed for RPN and RetinaNet, but not allowed
             in Cascade RCNN and Faster RCNN according to Detectron2.
         gpu_assign_thr (int): The upper bound of the number of GT for GPU
             assign. When the number of gt is above this threshold, will assign
@@ -176,13 +176,15 @@ class MaxIoUAssigner(BaseAssigner):
                              & (max_overlaps < self.neg_iou_thr[1])] = 0
 
         # 3. assign positive: above positive IoU threshold
-        # the positive inds are set to be [1-num_gts] indicating corresponding gt bbox
+        # the positive inds are set to be [1-num_gts] indicating corresponding
+        # gt bbox
         pos_inds = max_overlaps >= self.pos_iou_thr
         assigned_gt_inds[pos_inds] = argmax_overlaps[pos_inds] + 1
 
         # 4. assign fg: for each gt, proposals with highest IoU
         if self.match_low_quality:
-            # low-quality matching will overwirte the assigned_gt_inds assigned in Step 3
+            # low-quality matching will overwirte the assigned_gt_inds assigned
+            # in Step 3
             # thus the assigned gt might not be the best one for the prediction
             # e.g., bbox A has 0.9 and 0.8 iou with GT bbox 1 & 2
             # GT bbox 1's & 2's gt_argmax_overlaps = A

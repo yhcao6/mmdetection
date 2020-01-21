@@ -38,6 +38,7 @@ class ApproxMaxIoUAssigner(MaxIoUAssigner):
                  min_pos_iou=.0,
                  gt_max_assign_all=True,
                  ignore_iof_thr=-1,
+                 match_low_quality=True,
                  ignore_wrt_candidates=True,
                  gpu_assign_thr=-1):
         self.pos_iou_thr = pos_iou_thr
@@ -47,6 +48,7 @@ class ApproxMaxIoUAssigner(MaxIoUAssigner):
         self.ignore_iof_thr = ignore_iof_thr
         self.ignore_wrt_candidates = ignore_wrt_candidates
         self.gpu_assign_thr = gpu_assign_thr
+        self.match_low_quality = match_low_quality
 
     def assign(self,
                approxs,

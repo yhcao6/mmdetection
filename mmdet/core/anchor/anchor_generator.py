@@ -29,11 +29,11 @@ class AnchorGenerator(object):
     def gen_base_anchors(self):
         w = self.base_size
         h = self.base_size
-#         if self.ctr is None:
-#             x_ctr = 0.5 * w
-#             y_ctr = 0.5 * h
-#         else:
-#             x_ctr, y_ctr = self.ctr
+        #         if self.ctr is None:
+        #             x_ctr = 0.5 * w
+        #             y_ctr = 0.5 * h
+        #         else:
+        #             x_ctr, y_ctr = self.ctr
 
         h_ratios = torch.sqrt(self.ratios)
         w_ratios = 1 / h_ratios
@@ -50,7 +50,7 @@ class AnchorGenerator(object):
                 -0.5 * ws,  -0.5 * hs,
                 0.5 * ws, 0.5 * hs
             ],
-            dim=-1)# .round()
+            dim=-1)  # .round()
         # yapf: enable
         return base_anchors
 
