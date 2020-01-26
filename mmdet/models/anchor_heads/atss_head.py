@@ -189,13 +189,11 @@ class ATSSHead(AnchorHead):
         assert len(featmap_sizes) == len(self.anchor_generators)
 
         device = cls_scores[0].device
-        anchor_list, valid_flag_list = self.get_anchors(
-            featmap_sizes, img_metas, device=device)
+        anchor_list = self.get_anchors(featmap_sizes, img_metas, device=device)
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
 
         cls_reg_targets = self.atss_target(
             anchor_list,
-            valid_flag_list,
             gt_bboxes,
             img_metas,
             cfg,
@@ -348,7 +346,6 @@ class ATSSHead(AnchorHead):
 
     def atss_target(self,
                     anchor_list,
-                    valid_flag_list,
                     gt_bboxes_list,
                     img_metas,
                     cfg,
@@ -361,7 +358,7 @@ class ATSSHead(AnchorHead):
         here we need return the anchor
         """
         num_imgs = len(img_metas)
-        assert len(anchor_list) == len(valid_flag_list) == num_imgs
+        assert len(anchor_list) == num_imgs
 
         # anchor number of multi levels
         num_level_anchors = [anchors.size(0) for anchors in anchor_list[0]]
@@ -369,9 +366,7 @@ class ATSSHead(AnchorHead):
 
         # concat all level anchors and flags to a single tensor
         for i in range(num_imgs):
-            assert len(anchor_list[i]) == len(valid_flag_list[i])
             anchor_list[i] = torch.cat(anchor_list[i])
-            valid_flag_list[i] = torch.cat(valid_flag_list[i])
 
         # compute targets for each image
         if gt_bboxes_ignore_list is None:
@@ -382,7 +377,6 @@ class ATSSHead(AnchorHead):
          all_bbox_weights, pos_inds_list, neg_inds_list) = multi_apply(
              self.atss_target_single,
              anchor_list,
-             valid_flag_list,
              num_level_anchors_list,
              gt_bboxes_list,
              gt_bboxes_ignore_list,
@@ -412,7 +406,6 @@ class ATSSHead(AnchorHead):
 
     def atss_target_single(self,
                            flat_anchors,
-                           valid_flags,
                            num_level_anchors,
                            gt_bboxes,
                            gt_bboxes_ignore,
@@ -421,16 +414,20 @@ class ATSSHead(AnchorHead):
                            cfg,
                            label_channels=1,
                            unmap_outputs=True):
-        inside_flags = anchor_inside_flags(flat_anchors, valid_flags,
-                                           img_meta['img_shape'][:2],
-                                           cfg.allowed_border)
-        if not inside_flags.any():
-            return (None, ) * 6
-        # assign gt and sample anchors
-        anchors = flat_anchors[inside_flags, :]
+        if cfg.allowed_border >= 0:
+            inside_flags = anchor_inside_flags(flat_anchors,
+                                               img_meta['img_shape'][:2],
+                                               cfg.allowed_border)
+            if not inside_flags.any():
+                return (None, ) * 6
+            # assign gt and sample anchors
+            anchors = flat_anchors[inside_flags, :]
+            num_level_anchors_inside = self.get_num_level_anchors_inside(
+                num_level_anchors, inside_flags)
+        else:
+            anchors = flat_anchors
+            num_level_anchors_inside = num_level_anchors
 
-        num_level_anchors_inside = self.get_num_level_anchors_inside(
-            num_level_anchors, inside_flags)
         bbox_assigner = build_assigner(cfg.assigner)
         assign_result = bbox_assigner.assign(anchors, num_level_anchors_inside,
                                              gt_bboxes, gt_bboxes_ignore,
@@ -467,7 +464,7 @@ class ATSSHead(AnchorHead):
             label_weights[neg_inds] = 1.0
 
         # map up to original set of anchors
-        if unmap_outputs:
+        if cfg.allowed_border >= 0 and unmap_outputs:
             num_total_anchors = flat_anchors.size(0)
             anchors = unmap(anchors, num_total_anchors, inside_flags)
             labels = unmap(labels, num_total_anchors, inside_flags)
