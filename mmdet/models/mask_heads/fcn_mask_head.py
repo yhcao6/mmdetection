@@ -134,7 +134,7 @@ class FCNMaskHead(nn.Module):
         """Get segmentation masks from mask_pred and bboxes.
 
         Args:
-            mask_pred (Tensor or ndarray): shape (n, #class+1, h, w).
+            mask_pred (Tensor or ndarray): shape (n, #class, h, w).
                 For single-scale testing, mask_pred is the direct output of
                 model, whose type is Tensor, while for multi-scale testing,
                 it will be converted to numpy array outside of this method.
@@ -147,16 +147,14 @@ class FCNMaskHead(nn.Module):
         Returns:
             list[list]: encoded masks
         """
-        device = mask_pred.device
         if isinstance(mask_pred, torch.Tensor):
             mask_pred = mask_pred.sigmoid()
-        # assert isinstance(mask_pred, np.ndarray)
-        # when enabling mixed precision training, mask_pred may be float16
-        # numpy array
-        # mask_pred = mask_pred.astype(np.float32)
+        else:
+            mask_pred = det_bboxes.new_tensor(mask_pred)
 
+        device = mask_pred.device
         cls_segms = [[] for _ in range(self.num_classes)
-                     ]  # BG is not included in num_classes
+                     ]  # BG is not included in num_classes 
         bboxes = det_bboxes[:, :4]
         labels = det_labels
 
@@ -177,12 +175,7 @@ class FCNMaskHead(nn.Module):
                 mask_pred_ = mask_pred[i:i + 1, label:label + 1, :, :]
             else:
                 mask_pred_ = mask_pred[i:i + 1, 0:1, :, :]
-            # im_mask = np.zeros((img_h, img_w), dtype=np.uint8)
             im_mask = torch.zeros((img_h, img_w), dtype=torch.uint8)
-            # bbox_mask = mmcv.imresize(mask_pred_, (w, h))
-            # bbox_mask = (bbox_mask > rcnn_test_cfg.mask_thr_binary).astype(
-            #    np.uint8)
-            # im_mask[bbox[1]:bbox[1] + h, bbox[0]:bbox[0] + w] = bbox_mask
             masks_chunk, spatial_inds = _do_paste_mask(
                 mask_pred_,
                 bbox,

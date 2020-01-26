@@ -331,6 +331,8 @@ class HybridTaskCascadeRoIHead(CascadeRoIHead):
                 mask_classes = self.mask_head[-1].num_classes
                 segm_result = [[] for _ in range(mask_classes)]
             else:
+                if not isinstance(scale_factor, (float, torch.Tensor)):
+                    scale_factor = torch.from_numpy(scale_factor).to(det_bboxes.device)
                 _bboxes = (
                     det_bboxes[:, :4] *
                     scale_factor if rescale else det_bboxes)
@@ -436,8 +438,7 @@ class HybridTaskCascadeRoIHead(CascadeRoIHead):
         if self.with_mask:
             if det_bboxes.shape[0] == 0:
                 segm_result = [[]
-                               for _ in range(self.mask_head[-1].num_classes -
-                                              1)]
+                               for _ in range(self.mask_head[-1].num_classes)]
             else:
                 aug_masks = []
                 aug_img_metas = []

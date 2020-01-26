@@ -1,14 +1,23 @@
 import inspect
 
-import albumentations
 import mmcv
 import numpy as np
-from albumentations import Compose
-from imagecorruptions import corrupt
 from numpy import random
 
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 from ..registry import PIPELINES
+
+try:
+    from imagecorruptions import corrupt
+except ImportError:
+    corrupt = None
+
+try:
+    import albumentations
+    from albumentations import Compose
+except ImportError:
+    albumentations = None
+    Compose = None
 
 
 @PIPELINES.register_module
@@ -429,7 +438,7 @@ class RandomCrop(object):
         crop_x1, crop_x2 = offset_w, offset_w + self.crop_size[1]
 
         # crop the image
-        img = img[crop_y1:crop_y2, crop_x1:crop_x2, :]
+        img = img[crop_y1:crop_y2, crop_x1:crop_x2, ...]
         img_shape = img.shape
         results['img'] = img
         results['img_shape'] = img_shape
@@ -761,6 +770,8 @@ class Corrupt(object):
         self.severity = severity
 
     def __call__(self, results):
+        if corrupt is None:
+            raise RuntimeError('imagecorruptions is not installed')
         results['img'] = corrupt(
             results['img'].astype(np.uint8),
             corruption_name=self.corruption,
@@ -794,6 +805,8 @@ class Albu(object):
         skip_img_without_anno (bool): whether to skip the image
                                       if no ann left after aug
         """
+        if Compose is None:
+            raise RuntimeError('albumentations is not installed')
 
         self.transforms = transforms
         self.filter_lost_elements = False
@@ -837,6 +850,8 @@ class Albu(object):
 
         obj_type = args.pop("type")
         if mmcv.is_str(obj_type):
+            if albumentations is None:
+                raise RuntimeError('albumentations is not installed')
             obj_cls = getattr(albumentations, obj_type)
         elif inspect.isclass(obj_type):
             obj_cls = obj_type
@@ -899,9 +914,8 @@ class Albu(object):
                     results[label] = np.array(
                         [results[label][i] for i in results['idx_mapper']])
                 if 'masks' in results:
-                    results['masks'] = [
-                        results['masks'][i] for i in results['idx_mapper']
-                    ]
+                    results['masks'] = np.array(
+                        [results['masks'][i] for i in results['idx_mapper']])
 
                 if (not len(results['idx_mapper'])
                         and self.skip_img_without_anno):

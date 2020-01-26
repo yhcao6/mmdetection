@@ -131,6 +131,9 @@ def anchor_target_single(flat_anchors,
 
     pos_inds = sampling_result.pos_inds
     neg_inds = sampling_result.neg_inds
+    # remind new system set FG cat_id: [0, num_class-1], BG cat_id: num_class
+    if gt_labels is not None:
+        labels += num_classes
     if len(pos_inds) > 0:
         pos_bbox_targets = bbox2delta(sampling_result.pos_bboxes,
                                       sampling_result.pos_gt_bboxes,
@@ -141,9 +144,6 @@ def anchor_target_single(flat_anchors,
             # only rpn gives gt_labels as None, this time FG is 1
             labels[pos_inds] = 1
         else:
-            # remind new system set FG cat_id: [0, num_class-1], BG cat_id:
-            # num_class
-            labels += num_classes
             labels[pos_inds] = gt_labels[sampling_result.pos_assigned_gt_inds]
         if cfg.pos_weight <= 0:
             label_weights[pos_inds] = 1.0

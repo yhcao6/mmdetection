@@ -4,6 +4,7 @@ import numpy as np
 import pycocotools.mask as mask_utils
 import torch
 from torch.nn.modules.utils import _pair
+from mmdet.ops import roi_align
 
 from mmdet.ops import roi_align
 
@@ -87,3 +88,5 @@ def mask_target_single_bitmaps(pos_proposals, pos_assigned_gt_inds, gt_masks,
     else:
         mask_targets = pos_proposals.new_zeros((0, ) + mask_size)
     return mask_targets
+
+

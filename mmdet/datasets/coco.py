@@ -27,7 +27,7 @@ class CocoDataset(CustomDataset):
         self.coco = COCO(ann_file)
         self.cat_ids = self.coco.getCatIds()
         self.cat2label = {
-            cat_id: i  # + 1 rm +1 here thus the 0-79 are fg, 80 is bg
+            cat_id: i  # rm +1 here thus the 0-79 are fg, 80 is bg
             for i, cat_id in enumerate(self.cat_ids)
         }
         self.img_ids = self.coco.getImgIds()
@@ -76,7 +76,7 @@ class CocoDataset(CustomDataset):
             if ann.get('ignore', False):
                 continue
             x1, y1, w, h = ann['bbox']
-            if ann['area'] <= 0:  # or w < 1 or h < 1:
+            if ann['area'] <= 0:
                 continue
             bbox = [x1, y1, x1 + w, y1 + h]
             if ann.get('iscrowd', False):

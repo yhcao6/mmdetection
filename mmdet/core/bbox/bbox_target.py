@@ -10,9 +10,11 @@ def bbox_target(pos_bboxes_list,
                 pos_gt_labels_list,
                 cfg,
                 reg_classes=1,
+                num_classes=80,
                 target_means=[.0, .0, .0, .0],
                 target_stds=[1.0, 1.0, 1.0, 1.0],
                 concat=True):
+    # TODO: check whether reg_classes is necessary to keep
     labels, label_weights, bbox_targets, bbox_weights = multi_apply(
         bbox_target_single,
         pos_bboxes_list,
@@ -21,6 +23,7 @@ def bbox_target(pos_bboxes_list,
         pos_gt_labels_list,
         cfg=cfg,
         reg_classes=reg_classes,
+        num_classes=num_classes,
         target_means=target_means,
         target_stds=target_stds)
 
@@ -38,16 +41,18 @@ def bbox_target_single(pos_bboxes,
                        pos_gt_labels,
                        cfg,
                        reg_classes=1,
+                       num_classes=80,
                        target_means=[.0, .0, .0, .0],
                        target_stds=[1.0, 1.0, 1.0, 1.0]):
     num_pos = pos_bboxes.size(0)
     num_neg = neg_bboxes.size(0)
     num_samples = num_pos + num_neg
     # original implementation uses new_zeros since BG are set to be 0
-    # now use empty & fill because BG cat_id = reg_classes,
-    # FG cat_id = [0, reg_classes-1]
+    # now use empty & fill because BG cat_id = num_classes, 
+    # FG cat_id = [0, num_classes-1]
+    # the reg_classes is 1 in Cascade methods so we should not use reg_classes
     labels = pos_bboxes.new_empty(
-        num_samples, dtype=torch.long).fill_(reg_classes)
+        num_samples, dtype=torch.long).fill_(num_classes)
     label_weights = pos_bboxes.new_zeros(num_samples)
     bbox_targets = pos_bboxes.new_zeros(num_samples, 4)
     bbox_weights = pos_bboxes.new_zeros(num_samples, 4)

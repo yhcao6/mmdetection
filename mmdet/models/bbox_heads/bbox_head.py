@@ -21,7 +21,7 @@ class BBoxHead(nn.Module):
                  with_reg=True,
                  roi_feat_size=7,
                  in_channels=256,
-                 num_classes=80,
+                 num_classes=80,  # do not count BG anymore
                  target_means=[0., 0., 0., 0.],
                  target_stds=[0.1, 0.1, 0.2, 0.2],
                  reg_class_agnostic=False,
@@ -92,6 +92,7 @@ class BBoxHead(nn.Module):
             pos_gt_labels,
             rcnn_train_cfg,
             reg_classes,
+            num_classes=self.num_classes,
             target_means=self.target_means,
             target_stds=self.target_stds)
         return cls_reg_targets
@@ -120,7 +121,6 @@ class BBoxHead(nn.Module):
             bg_class_ind = self.num_classes
             # 0~self.num_classes-1 are FG, self.num_classes is BG
             pos_inds = (labels >= 0) & (labels < bg_class_ind)
-
             # do not perform bounding box regression for BG anymore.
             if pos_inds.any():
                 if self.reg_class_agnostic:

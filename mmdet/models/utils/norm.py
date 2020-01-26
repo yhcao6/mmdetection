@@ -1,5 +1,7 @@
+import torch
 import torch.nn as nn
 
+    
 norm_cfg = {
     # format: layer_type: (abbreviation, module)
     'BN': ('bn', nn.BatchNorm2d),
@@ -53,3 +55,6 @@ def build_norm_layer(cfg, num_features, postfix=''):
         param.requires_grad = requires_grad
 
     return name, layer
+
+
+

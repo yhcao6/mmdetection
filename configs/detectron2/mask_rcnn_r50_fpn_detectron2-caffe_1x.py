@@ -127,7 +127,7 @@ data_root = 'data/coco/'
 # Default values are the mean pixel value from ImageNet: [103.53, 116.28, 123.675]
 # When using pre-trained models in Detectron1 or any MSRA models,
 # std has been absorbed into its conv1 weights, so the std needs to be set 1.
-img_norm_cfg = dict(  # The 
+img_norm_cfg = dict(
     mean=[103.530, 116.280, 123.675],
     std=[1.0, 1.0, 1.0],
     to_rgb=False)

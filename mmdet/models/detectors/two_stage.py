@@ -55,6 +55,21 @@ class TwoStageDetector(BaseDetector, RPNTestMixin):
     def with_roi_head(self):
         return hasattr(self, 'roi_head') and self.roi_head is not None
 
+    @property
+    def with_shared_head(self):
+        return hasattr(self.roi_head,
+                       'shared_head') and self.roi_head.shared_head is not None
+
+    @property
+    def with_bbox(self):
+        return hasattr(self.roi_head,
+                       'bbox_head') and self.roi_head.bbox_head is not None
+
+    @property
+    def with_mask(self):
+        return hasattr(self.roi_head,
+                       'mask_head') and self.roi_head.mask_head is not None
+
     def init_weights(self, pretrained=None):
         super(TwoStageDetector, self).init_weights(pretrained)
         self.backbone.init_weights(pretrained=pretrained)

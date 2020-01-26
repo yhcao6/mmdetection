@@ -63,6 +63,8 @@ class MaskScoringRoIHead(BaseRoIHead):
         else:
             # if det_bboxes is rescaled to the original image size, we need to
             # rescale it back to the testing scale to obtain RoIs.
+            if not isinstance(scale_factor, (float, torch.Tensor)):
+                scale_factor = det_bboxes.new_tensor(scale_factor)
             _bboxes = (
                 det_bboxes[:, :4] * scale_factor if rescale else det_bboxes)
             mask_rois = bbox2roi([_bboxes])
@@ -78,8 +80,7 @@ class MaskScoringRoIHead(BaseRoIHead):
                                                        rescale)
             # get mask scores with mask iou head
             mask_iou_pred = self.mask_iou_head(
-                mask_feats, mask_pred[range(det_labels.size(0)),
-                                      det_labels + 1])
+                mask_feats, mask_pred[range(det_labels.size(0)), det_labels])
             mask_scores = self.mask_iou_head.get_mask_scores(
                 mask_iou_pred, det_bboxes, det_labels)
         return segm_result, mask_scores
