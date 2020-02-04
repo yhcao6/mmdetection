@@ -117,8 +117,6 @@ class APLossHead(AnchorHead):
         assert len(featmap_sizes) == len(self.anchor_generators)
 
         gt_labels = [gt_label - 1 for gt_label in gt_labels]
-        max_l = [gt_label.max() for gt_label in gt_labels]
-        min_l = [gt_label.min() for gt_label in gt_labels]
 
         num_img = len(img_metas)
         cls_scores = [
