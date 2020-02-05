@@ -141,5 +141,6 @@ class APLossHead(AnchorHead):
         anchors = torch.stack(anchors)
         losses_cls, losses_bbox = self.ap_loss.apply(cls_scores, bbox_preds,
                                                      anchors, gt_bboxes,
-                                                     gt_labels)
+                                                     gt_labels,
+                                                     self.target_stds)
         return dict(loss_cls=losses_cls, loss_bbox=losses_bbox)

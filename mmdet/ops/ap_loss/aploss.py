@@ -33,7 +33,7 @@ class APLoss(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, classifications, regressions, anchors, gt_bboxes,
-                gt_labels):
+                gt_labels, target_stds):
 
         batch_size = classifications.shape[0]
         regression_losses = []
@@ -127,8 +127,7 @@ class APLoss(torch.autograd.Function):
                     (targets_dx, targets_dy, targets_dw, targets_dh))
                 targets2 = targets2.t()
 
-                targets2 = targets2 / torch.Tensor([[0.1, 0.1, 0.2, 0.2]
-                                                    ]).cuda()
+                targets2 = targets2 / torch.Tensor(target_stds).cuda()
 
                 # negative_indices = ~ positive_indices
 
@@ -165,7 +164,7 @@ class APLoss(torch.autograd.Function):
     @staticmethod
     def backward(ctx, out_grad1, out_grad2):
         g1, g2 = ctx.saved_tensors
-        return g1 * out_grad1, g2 * out_grad2, None, None, None
+        return g1 * out_grad1, g2 * out_grad2, None, None, None, None
 
 
 def AP_loss(logits, targets):

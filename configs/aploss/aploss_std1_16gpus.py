@@ -27,7 +27,7 @@ model = dict(
         anchor_ratios=[0.5, 1.0, 2.0],
         anchor_strides=[8, 16, 32, 64, 128],
         target_means=[.0, .0, .0, .0],
-        target_stds=[0.1, 0.1, 0.2, 0.2],
+        target_stds=[1., 1., 1., 1.],
         loss_cls=dict(
             type='FocalLoss',
             use_sigmoid=True,
@@ -83,8 +83,8 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    imgs_per_gpu=2,
-    workers_per_gpu=2,
+    imgs_per_gpu=4,
+    workers_per_gpu=4,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_train2017.json',
@@ -101,14 +101,14 @@ data = dict(
         img_prefix=data_root + 'val2017/',
         pipeline=test_pipeline))
 # optimizer
-optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.04, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(
     policy='step',
     warmup='linear',
-    warmup_iters=500,
-    warmup_ratio=1.0 / 3,
+    warmup_iters=1000,
+    warmup_ratio=1.0 / 10,
     step=[8, 11])
 checkpoint_config = dict(interval=1)
 # yapf:disable
