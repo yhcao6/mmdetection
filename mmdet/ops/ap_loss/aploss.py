@@ -74,8 +74,8 @@ class APLoss(torch.autograd.Function):
 
             ######
             gt_IoU_max, gt_IoU_argmax = torch.max(IoU, dim=0)
-            # gt_IoU_argmax = torch.where(IoU == gt_IoU_max)[0]
-            gt_IoU_argmax = (IoU == gt_IoU_max).nonzero().view(-1, 2)[:, 0]
+            gt_IoU_argmax = torch.where(IoU == gt_IoU_max)[0]
+            # gt_IoU_argmax = (IoU == gt_IoU_max).nonzero().view(-1, 2)[:, 0]
             positive_indices = torch.ge(torch.zeros(IoU_max.shape).cuda(), 1)
             positive_indices[gt_IoU_argmax.long()] = True
             ######
