@@ -1,5 +1,8 @@
+import copy
+
 import mmcv
 import numpy as np
+import pycocotools.mask as mask_utils
 import torch
 from torch.nn.modules.utils import _pair
 
@@ -7,13 +10,20 @@ from torch.nn.modules.utils import _pair
 def mask_target(pos_proposals_list, pos_assigned_gt_inds_list, gt_masks_list,
                 cfg):
     cfg_list = [cfg for _ in range(len(pos_proposals_list))]
+    if isinstance(gt_masks_list[0], np.ndarray):
+        mask_target_single = mask_target_single_bitmaps
+    elif isinstance(gt_masks_list[0], list):
+        mask_target_single = mask_target_single_polygons
+    else:
+        raise NotImplementedError
     mask_targets = map(mask_target_single, pos_proposals_list,
                        pos_assigned_gt_inds_list, gt_masks_list, cfg_list)
     mask_targets = torch.cat(list(mask_targets))
     return mask_targets
 
 
-def mask_target_single(pos_proposals, pos_assigned_gt_inds, gt_masks, cfg):
+def mask_target_single_bitmaps(pos_proposals, pos_assigned_gt_inds, gt_masks,
+                               cfg):
     mask_size = _pair(cfg.mask_size)
     num_pos = pos_proposals.size(0)
     mask_targets = []
@@ -38,4 +48,46 @@ def mask_target_single(pos_proposals, pos_assigned_gt_inds, gt_masks, cfg):
             pos_proposals.device)
     else:
         mask_targets = pos_proposals.new_zeros((0, ) + mask_size)
+    return mask_targets
+
+
+def mask_target_single_polygons(pos_proposals, pos_assigned_gt_inds, gt_masks,
+                                cfg):
+    mask_size = cfg.mask_size
+    num_pos = pos_proposals.size(0)
+    mask_targets = []
+    if num_pos > 0:
+        proposals_np = pos_proposals.cpu().numpy()
+        for i in range(num_pos):
+            polygons = gt_masks[pos_assigned_gt_inds[i]]
+            bbox = proposals_np[i]
+
+            # shift
+            polygons = copy.deepcopy(polygons)
+            for p in polygons:
+                p[0::2] = p[0::2] - bbox[0]
+                p[1::2] = p[1::2] - bbox[1]
+
+            # rescale
+            w = bbox[2] - bbox[0]
+            h = bbox[3] - bbox[1]
+            ratio_h = mask_size / max(h, 0.1)
+            ratio_w = mask_size / max(w, 0.1)
+            if ratio_h == ratio_w:
+                for p in polygons:
+                    p *= ratio_h
+            else:
+                for p in polygons:
+                    p[0::2] *= ratio_w
+                    p[1::2] *= ratio_h
+
+            # convert to bitmap
+            rles = mask_utils.frPyObjects(polygons, mask_size, mask_size)
+            rle = mask_utils.merge(rles)
+            mask = mask_utils.decode(rle).astype(np.bool)
+            mask_targets.append(torch.from_numpy(mask))
+        mask_targets = torch.stack(mask_targets).to(
+            device=pos_proposals.device).float()
+    else:
+        mask_targets = pos_proposals.new_zeros((0, mask_size, mask_size))
     return mask_targets
