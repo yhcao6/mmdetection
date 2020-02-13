@@ -267,16 +267,16 @@ class RandomFlip(object):
                     flipped_poly_per_instance = []
                     for p in poly_per_instance:
                         p = p.copy()
-                        p[0::2] = w - p[0::2]
+                        p[0::2] = w - p[0::2] - 1
                         flipped_poly_per_instance.append(p)
                     flipped_masks.append(flipped_poly_per_instance)
             elif direction == 'vertical':
                 h = img_shape[0]
-                for poly_per_instance in polygons:
+                for poly_per_instance in masks:
                     flipped_poly_per_instance = []
                     for p in poly_per_instance:
                         p = p.copy()
-                        p[1::2] = h - p[1::2]
+                        p[1::2] = h - p[1::2] - 1
                         flipped_poly_per_instance.append(p)
                     flipped_masks.append(flipped_poly_per_instance)
         return flipped_masks
