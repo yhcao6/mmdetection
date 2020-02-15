@@ -8,7 +8,7 @@ from torch.nn.modules.utils import _pair
 
 
 def mask_target(pos_proposals_list, pos_assigned_gt_inds_list, gt_masks_list,
-                cfg):
+                cfg, img_meta_list):
     cfg_list = [cfg for _ in range(len(pos_proposals_list))]
     if isinstance(gt_masks_list[0], np.ndarray):
         mask_target_single = mask_target_single_bitmaps
@@ -17,13 +17,14 @@ def mask_target(pos_proposals_list, pos_assigned_gt_inds_list, gt_masks_list,
     else:
         raise NotImplementedError
     mask_targets = map(mask_target_single, pos_proposals_list,
-                       pos_assigned_gt_inds_list, gt_masks_list, cfg_list)
+                       pos_assigned_gt_inds_list, gt_masks_list, cfg_list,
+                       img_meta_list)
     mask_targets = torch.cat(list(mask_targets))
     return mask_targets
 
 
 def mask_target_single_bitmaps(pos_proposals, pos_assigned_gt_inds, gt_masks,
-                               cfg):
+                               cfg, img_meta):
     mask_size = _pair(cfg.mask_size)
     num_pos = pos_proposals.size(0)
     mask_targets = []
@@ -52,12 +53,15 @@ def mask_target_single_bitmaps(pos_proposals, pos_assigned_gt_inds, gt_masks,
 
 
 def mask_target_single_polygons(pos_proposals, pos_assigned_gt_inds, gt_masks,
-                                cfg):
+                                cfg, img_meta):
     mask_size = cfg.mask_size
     num_pos = pos_proposals.size(0)
     mask_targets = []
     if num_pos > 0:
         proposals_np = pos_proposals.cpu().numpy()
+        maxh, maxw = img_meta['pad_shape'][:2]
+        proposals_np[:, [0, 2]] = np.clip(proposals_np[:, [0, 2]], 0, maxw - 1)
+        proposals_np[:, [1, 3]] = np.clip(proposals_np[:, [1, 3]], 0, maxh - 1)
         for i in range(num_pos):
             polygons = gt_masks[pos_assigned_gt_inds[i]]
             bbox = proposals_np[i]
