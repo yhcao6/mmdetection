@@ -69,8 +69,8 @@ def mask_target_single_polygons(pos_proposals, pos_assigned_gt_inds, gt_masks,
                 p[1::2] = p[1::2] - bbox[1]
 
             # rescale
-            w = bbox[2] - bbox[0]
-            h = bbox[3] - bbox[1]
+            w = bbox[2] - bbox[0] + 1
+            h = bbox[3] - bbox[1] + 1
             ratio_h = mask_size / max(h, 0.1)
             ratio_w = mask_size / max(w, 0.1)
             if ratio_h == ratio_w:
