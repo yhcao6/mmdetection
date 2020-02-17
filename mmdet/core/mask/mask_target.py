@@ -64,7 +64,7 @@ def mask_target_single_polygons(pos_proposals, pos_assigned_gt_inds, gt_masks,
         proposals_np[:, [1, 3]] = np.clip(proposals_np[:, [1, 3]], 0, maxh - 1)
         for i in range(num_pos):
             polygons = gt_masks[pos_assigned_gt_inds[i]]
-            bbox = proposals_np[i]
+            bbox = proposals_np[i, :].astype(np.int32)
 
             # shift
             polygons = copy.deepcopy(polygons)
