@@ -129,9 +129,11 @@ class LoadAnnotations(object):
             polygons (list of ndarray).
         """
         polygons = [np.array(p) for p in polygons]
+        valid_polygons = []
         for polygon in polygons:
-            assert len(polygon) % 2 == 0 and len(polygon) >= 6
-        return polygons
+            if len(polygon) % 2 == 0 and len(polygon) >= 6:
+                valid_polygons.append(polygon)
+        return valid_polygons
 
 
 @PIPELINES.register_module
