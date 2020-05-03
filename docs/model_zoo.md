@@ -138,8 +138,8 @@ The backbone used is R-50-FPN.
 
 ### Hardware
 
-- 8 NVIDIA Tesla V100 GPUs
-- Intel Xeon 4114 CPU @ 2.20GHz
+- 8 NVIDIA Tesla V100 GPUs (32GB)
+- Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz
 
 ### Software environment
 
