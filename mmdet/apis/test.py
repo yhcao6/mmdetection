@@ -24,6 +24,12 @@ def single_gpu_test(model,
     for i, data in enumerate(data_loader):
         with torch.no_grad():
             result = model(return_loss=False, rescale=True, **data)
+            # only need results of vehicle
+            if isinstance(result[0], tuple):
+                filter_result = [(result[0][0][1:8], result[0][1][1:8])]
+            else:
+                filter_result = [r[1:8] for r in result]
+            result = filter_result
 
         batch_size = len(result)
         if show or out_dir:
